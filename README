@@ -1,4 +1,4 @@
-rew
-===
-
 Reweight ntupple events by varying factorization scale, normalization scale, and pdf uncertainties
+
+Second implementation attempt.
+Now using C++11 and multithreading
