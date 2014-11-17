@@ -1,3 +1,7 @@
 # Compilation output
 lib
 bin
+
+# Computation output
+out
+*.root
