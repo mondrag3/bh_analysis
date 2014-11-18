@@ -14,6 +14,8 @@
 
 using namespace std;
 
+template<typename T> inline T sq(T x) { return x*x; }
+
 // PDF variables
 const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
@@ -88,12 +90,12 @@ void calc_all_scales() noexcept {
 // Factorization --------------------------------
 
 const fac_calc*
-mk_fac_calc(const mu_fcn* mu_f, bool unc) {
-  return new fac_calc(mu_f,unc);
+mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF) {
+  return new fac_calc(mu_f,unc,defaultPDF);
 }
 
-fac_calc::fac_calc(const mu_fcn* mu_f, bool unc)
-: calc_base(), mu_f(mu_f), unc(unc)
+fac_calc::fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF)
+: calc_base(), mu_f(mu_f), unc(unc), defaultPDF(defaultPDF)
 {
   all.push_back( unique_ptr<const calc_base>(this) );
 }
@@ -107,13 +109,14 @@ fac_calc::~fac_calc() {
 // Renormalization ------------------------------
 
 const ren_calc*
-mk_ren_calc(const mu_fcn* mu_r) {
-  return new ren_calc(mu_r);
+mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF) {
+  return new ren_calc(mu_r,defaultPDF);
 }
 
-ren_calc::ren_calc(const mu_fcn* mu_r)
-: calc_base(), mu_r(mu_r)
+ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF)
+: calc_base(), mu_r(mu_r), defaultPDF(defaultPDF)
 {
+  if (defaultPDF) ar = 1;
   all.push_back( unique_ptr<const calc_base>(this) );
 }
 
@@ -162,10 +165,16 @@ void fac_calc::calc() const noexcept {
   const double mu = mu_f->mu();
 
   // Born & Real
-  for (short i=0;i<2;++i) {
-    f[i][0] = pdfs[0]->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
+  if (defaultPDF) m[0] = event.weight;
+  else {
+    for (short i=0;i<2;++i) {
+      f[i][0] = pdfs[0]->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
+    }
+    m[0] = event.me_wgt2;
   }
-  m[0] = event.me_wgt2;
+
+  // TODO: Integrated subtraction
+
 
 }
 
@@ -184,7 +193,7 @@ void ren_calc::calc() const noexcept {
   const double mu = mu_r->mu();
 
   // Calculate α_s change from renormalization
-  ar = pow( pdfs[0]->alphasQ(mu) / alphas, n );
+  if (!defaultPDF) ar = pow( pdfs[0]->alphasQ(mu) / alphas, n );
 
   // Calculate lr, same as l in Eq (30)
   if (part=='V' || part=='I')
@@ -197,12 +206,19 @@ void ren_calc::calc() const noexcept {
 //-----------------------------------------------
 
 void reweighter::stitch() const noexcept {
+  // There is only one global event variable
+  // so these references always points to the right place
+  static const char& part = event.part[0];
+  static Double_t* const& usr_wgts = event.usr_wgts;
 
-  // Born & Real
-  s = fac->m[0];
-  for (short i=0;i<2;++i) s *= fac->f[i][0];
+  s = fac->m[0]; // m0
 
+  if (part=='V' || part=='I')
+    s += (ren->lr)*usr_wgts[0] + 0.5*sq(ren->lr)*usr_wgts[1]; // m0
 
+  for (short i=0;i<2;++i) s *= fac->f[i][0]; // m0 becomes s
+
+  // TODO: if part=='I' s += sum over quarks
 
 
   weight[0] = s * ren->ar;

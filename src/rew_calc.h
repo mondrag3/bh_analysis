@@ -76,22 +76,23 @@ class fac_calc: public calc_base {
 protected:
   const mu_fcn* mu_f;
   bool unc;
+  bool defaultPDF;
 
   mutable double f[2][5], m[5], lf;
 
-  fac_calc(const mu_fcn* mu_f, bool unc);
+  fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF);
   virtual void calc() const noexcept;
 
 public:
   virtual ~fac_calc();
 
 friend
-const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc);
+const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF);
 
 friend class reweighter;
 };
 
-const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc=false);
+const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc=false, bool defaultPDF=false);
 
 //-----------------------------------------------
 // Renormalization ------------------------------
@@ -100,22 +101,23 @@ const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc=false);
 class ren_calc: public calc_base {
 protected:
   const mu_fcn* mu_r;
+  bool defaultPDF;
 
   mutable double ar, lr;
 
-  ren_calc(const mu_fcn* mu_r);
+  ren_calc(const mu_fcn* mu_r, bool defaultPDF);
   virtual void calc() const noexcept;
 
 public:
   virtual ~ren_calc();
 
 friend
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r);
+const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF);
 
 friend class reweighter;
 };
 
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r);
+const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF=false);
 
 //-----------------------------------------------
 // Reweighter: combines fac and ren -------------
