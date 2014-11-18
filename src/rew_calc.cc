@@ -11,22 +11,24 @@
 
 using namespace std;
 
+// PDF variables
+const LHAPDF::PDFSet* pdfset(nullptr);
+vector<LHAPDF::PDF*> pdfs;
+
 // PDF garbage collector
-struct PDFHolder {
-  const LHAPDF::PDFSet* pdfset;
-  vector<LHAPDF::PDF*> pdfs;
-  PDFHolder(): pdfset(nullptr), pdfs() { }
-  ~PDFHolder() {
+struct PDFgc {
+  inline void clear() {
     delete pdfset;
     for ( auto pdf : pdfs ) delete pdf;
   }
+  ~PDFgc() { clear(); }
 } __pdf;
 
 // Function to make PDFs
 void usePDFset(const std::string& setname) {
-  __pdf.~PDFHolder();
-  __pdf.pdfset = new LHAPDF::PDFSet(setname);
-  __pdf.pdfs = __pdf.pdfset->mkPDFs();
+  __pdf.clear();
+  pdfset = new LHAPDF::PDFSet(setname);
+  pdfs = pdfset->mkPDFs();
 }
 
 //-----------------------------------------------
@@ -43,7 +45,7 @@ mu_const::mu_const(double mu)
   } () ),
   _mu(mu)
 { }
-double mu_const::mu() const {
+double mu_const::mu() const noexcept {
   return _mu;
 }
 
@@ -55,17 +57,17 @@ mu_fHt::mu_fHt(double fHt)
   } () ),
   fHt(fHt)
 { }
-double mu_fHt::mu() const {
+double mu_fHt::mu() const noexcept {
   return fHt*event.Ht();
 }
 
 mu_fac_default::mu_fac_default(): mu_fcn("default") { }
-double mu_fac_default::mu() const {
+double mu_fac_default::mu() const noexcept {
   return event.fac_scale;
 }
 
 mu_ren_default::mu_ren_default(): mu_fcn("default") { }
-double mu_ren_default::mu() const {
+double mu_ren_default::mu() const noexcept {
   return event.ren_scale;
 }
 
@@ -76,7 +78,7 @@ double mu_ren_default::mu() const {
 std::vector<std::unique_ptr<const calc_base>> calc_base::all;
 
 // TODO: Use multiple threads here
-void calc_all_scales() {
+void calc_all_scales() noexcept {
   for (auto& c : calc_base::all ) c->calc();
 }
 
@@ -123,7 +125,7 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   stringstream ss;
   ss <<  "Fac" << fac->mu_f->str
      << "_Ren" << ren->mu_r->str
-     << "_PDF" << __pdf.pdfset->name();
+     << "_PDF" << pdfset->name();
   if (fac->unc) ss << "_unc";
   else ss << "_cent";
   string name( ss.str() );
@@ -145,7 +147,7 @@ reweighter::~reweighter() {
 // Factorization
 //-----------------------------------------------
 
-void fac_calc::calc() const {
+void fac_calc::calc() const noexcept {
   cout << "fac_calc: " << mu_f->str << " = " << mu_f->mu() << endl;
 }
 
@@ -153,7 +155,7 @@ void fac_calc::calc() const {
 // Renormalization
 //-----------------------------------------------
 
-void ren_calc::calc() const {
+void ren_calc::calc() const noexcept {
   cout << "ren_calc: " << mu_r->str << " = " << mu_r->mu() << endl;
 }
 
@@ -182,7 +184,7 @@ void ren_calc::calc() const {
 // Stitch
 //-----------------------------------------------
 
-void reweighter::stitch() const {
+void reweighter::stitch() const noexcept {
   cout << "Calculating weight for:"
        << " Fac" << fac->mu_f->str
        << " Ren" << ren->mu_r->str << endl;

@@ -19,33 +19,33 @@ void usePDFset(const std::string& setname);
 struct mu_fcn {
   std::string str;
   mu_fcn(const std::string& str);
-  virtual double mu() const =0;
+  virtual double mu() const noexcept =0;
   virtual ~mu_fcn() { }
 };
 
 struct mu_const: public mu_fcn {
   double _mu;
   mu_const(double mu);
-  virtual double mu() const;
+  virtual double mu() const noexcept;
   virtual ~mu_const() { }
 };
 
 struct mu_fHt: public mu_fcn {
   double fHt;
   mu_fHt(double fHt);
-  virtual double mu() const;
+  virtual double mu() const noexcept;
   virtual ~mu_fHt() { }
 };
 
 struct mu_fac_default: public mu_fcn {
   mu_fac_default();
-  virtual double mu() const;
+  virtual double mu() const noexcept;
   virtual ~mu_fac_default() { }
 };
 
 struct mu_ren_default: public mu_fcn {
   mu_ren_default();
-  virtual double mu() const;
+  virtual double mu() const noexcept;
   virtual ~mu_ren_default() { }
 };
 
@@ -56,15 +56,15 @@ struct mu_ren_default: public mu_fcn {
 class calc_base {
 protected:
   static std::vector<std::unique_ptr<const calc_base>> all;
-  virtual void calc() const =0;
+  virtual void calc() const noexcept =0;
 
 public:
   virtual ~calc_base() { }
 
-friend void calc_all_scales(); // run calc for all calcs
+friend void calc_all_scales() noexcept; // run calc for all calcs
 };
 
-void calc_all_scales();
+void calc_all_scales() noexcept;
 
 class reweighter;
 
@@ -80,7 +80,7 @@ protected:
   mutable double f[2][5], m[5], lf;
 
   fac_calc(const mu_fcn* mu_f, bool unc);
-  virtual void calc() const;
+  virtual void calc() const noexcept;
 
 public:
   virtual ~fac_calc();
@@ -104,7 +104,7 @@ protected:
   mutable double ar, lr;
 
   ren_calc(const mu_fcn* mu_r);
-  virtual void calc() const;
+  virtual void calc() const noexcept;
 
 public:
   virtual ~ren_calc();
@@ -131,7 +131,7 @@ public:
   // Constructor creates branches on tree
   reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree);
   ~reweighter();
-  void stitch() const;
+  void stitch() const noexcept;
 };
 
 #endif

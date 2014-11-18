@@ -14,7 +14,7 @@ LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
 .PHONY: all clean
 
-EXE := bin/test_rew_calc
+EXE := bin/test_rew_calc bin/reweigh
 
 all: $(DIRS) $(EXE)
 
@@ -54,11 +54,11 @@ lib/rew_calc.o     : src/BHEvent.h
 
 # EXE_OBJ dependencies
 lib/test_rew_calc.o: src/rew_calc.h src/BHEvent.h
-#lib/reweigh.o      : src/BHEvent.h src/reweighter.h
+lib/reweigh.o      : src/rew_calc.h src/BHEvent.h
 
 # EXE dependencies
 bin/test_rew_calc  : lib/rew_calc.o lib/BHEvent.o
-#bin/reweigh        : lib/BHEvent.o lib/reweighter.o
+bin/reweigh        : lib/rew_calc.o lib/BHEvent.o
 
 clean:
 	rm -rf bin lib
