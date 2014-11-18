@@ -9,8 +9,8 @@ CGFLAGS := -std=c++11 -Wall -g  -Isrc
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
 
-LHAPDF_FLAGS := $(shell lhapdf-config --cppflags)
-LHAPDF_LIBS  := $(shell lhapdf-config --ldflags)
+LHAPDF_CFLAGS := $(shell lhapdf-config --cppflags)
+LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
 .PHONY: all clean
 
@@ -29,7 +29,7 @@ lib/BHEvent.o lib/SJClusterAlg.o lib/weight_ent.o lib/hist_wrap.o: lib/%.o: src/
 
 lib/rew_calc.o: lib/%.o: src/%.cc src/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
-	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS)  -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # main object rules
 lib/reweigh.o: lib/%.o: src/%.cc
@@ -47,7 +47,7 @@ bin/reweigh: bin/%: lib/%.o
 
 bin/test_rew_calc: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
+	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(LHAPDF_LIBS)
 
 # OBJ dependencies
 lib/rew_calc.o     : src/BHEvent.h

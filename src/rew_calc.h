@@ -14,6 +14,12 @@ namespace LHAPDF {
   class PDFSet;
 }
 
+extern std::unique_ptr<const LHAPDF::PDFSet> pdfset;
+extern std::vector<std::unique_ptr<const LHAPDF::PDF>> pdfs;
+
+// Function to make PDFs
+void usePDFset(const std::string& setname);
+
 //-----------------------------------------------
 // Function classes to get scales values
 //-----------------------------------------------
@@ -77,23 +83,23 @@ class reweighter;
 class fac_calc: public calc_base {
 protected:
   const mu_fcn* mu_f;
-  //const std::vector<LHAPDF::PDF*>& pdfs;
-  //bool unc;
+  bool unc;
 
   mutable double f[2][5], m[5], lf;
 
-  fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs*/);
+  fac_calc(const mu_fcn* mu_f, bool unc);
   virtual void calc() const;
 
 public:
   virtual ~fac_calc();
 
-friend const fac_calc* mk_fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs, bool unc=false*/);
+friend
+const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc);
 
 friend class reweighter;
 };
 
-const fac_calc* mk_fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs, bool unc=false*/);
+const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc=false);
 
 //-----------------------------------------------
 // Renormalization ------------------------------
@@ -102,22 +108,22 @@ const fac_calc* mk_fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs,
 class ren_calc: public calc_base {
 protected:
   const mu_fcn* mu_r;
-  //const LHAPDF::PDF* pdf;
 
   mutable double ar, lr;
 
-  ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/);
+  ren_calc(const mu_fcn* mu_r);
   virtual void calc() const;
 
 public:
   virtual ~ren_calc();
 
-friend const ren_calc* mk_ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/);
+friend
+const ren_calc* mk_ren_calc(const mu_fcn* mu_r);
 
 friend class reweighter;
 };
 
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/);
+const ren_calc* mk_ren_calc(const mu_fcn* mu_r);
 
 //-----------------------------------------------
 // Reweighter: combines fac and ren -------------
@@ -131,7 +137,7 @@ class reweighter {
 
 public:
   // Constructor creates branches on tree
-  reweighter(const fac_calc* fac, const ren_calc* ren/*, TTree* tree*/);
+  reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree);
   ~reweighter();
   void stitch() const;
 };
