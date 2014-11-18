@@ -1,5 +1,4 @@
 #include <iostream>
-#include <memory>
 
 #include <TFile.h>
 #include <TTree.h>

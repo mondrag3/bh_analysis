@@ -9,14 +9,6 @@
 
 extern BHEvent event;
 
-namespace LHAPDF {
-  class PDF;
-  class PDFSet;
-}
-
-extern std::unique_ptr<const LHAPDF::PDFSet> pdfset;
-extern std::vector<std::unique_ptr<const LHAPDF::PDF>> pdfs;
-
 // Function to make PDFs
 void usePDFset(const std::string& setname);
 

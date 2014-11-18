@@ -11,18 +11,22 @@
 
 using namespace std;
 
-// definitions of externs
-unique_ptr<const LHAPDF::PDFSet> pdfset;
-vector<unique_ptr<const LHAPDF::PDF>> pdfs;
+// PDF garbage collector
+struct PDFHolder {
+  const LHAPDF::PDFSet* pdfset;
+  vector<LHAPDF::PDF*> pdfs;
+  PDFHolder(): pdfset(nullptr), pdfs() { }
+  ~PDFHolder() {
+    delete pdfset;
+    for ( auto pdf : pdfs ) delete pdf;
+  }
+} __pdf;
 
 // Function to make PDFs
 void usePDFset(const std::string& setname) {
-  using namespace LHAPDF;
-  pdfset = unique_ptr<const PDFSet>( new PDFSet(setname) );
-  vector<PDF*> _pdfs = pdfset->mkPDFs();
-  pdfs.reserve( _pdfs.size() );
-  for ( auto pdf : _pdfs )
-    pdfs.push_back( unique_ptr<const PDF>( pdf ) );
+  __pdf.~PDFHolder();
+  __pdf.pdfset = new LHAPDF::PDFSet(setname);
+  __pdf.pdfs = __pdf.pdfset->mkPDFs();
 }
 
 //-----------------------------------------------
@@ -119,7 +123,7 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   stringstream ss;
   ss <<  "Fac" << fac->mu_f->str
      << "_Ren" << ren->mu_r->str
-     << "_PDF" << pdfset->name();
+     << "_PDF" << __pdf.pdfset->name();
   if (fac->unc) ss << "_unc";
   else ss << "_cent";
   string name( ss.str() );
