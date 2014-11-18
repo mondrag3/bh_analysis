@@ -9,6 +9,9 @@
 #include "LHAPDF/LHAPDF.h"
 #include "LHAPDF/PDFSet.h"
 
+#define test(var) \
+  cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
+
 using namespace std;
 
 // PDF variables
@@ -99,6 +102,8 @@ fac_calc::~fac_calc() {
   delete mu_f;
 }
 
+// TODO: Add a check for branches with the same name
+
 // Renormalization ------------------------------
 
 const ren_calc*
@@ -120,8 +125,13 @@ ren_calc::~ren_calc() {
 
 // Constructor creates branches on tree
 reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
-: fac(fac), ren(ren), weight( new Float_t )
+: fac(fac), ren(ren)
 {
+  if (!pdfset) {
+    cerr << "\033[31mNo PDF loaded\033[0m"  << endl;
+    exit(1);
+  }
+
   stringstream ss;
   ss <<  "Fac" << fac->mu_f->str
      << "_Ren" << ren->mu_r->str
@@ -130,12 +140,12 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   else ss << "_cent";
   string name( ss.str() );
 
-  tree->Branch(name.c_str(), weight, (name+"/F").c_str());
+  cout << "Creating branch: " << name << endl;
+
+  tree->Branch(name.c_str(), &weight[0], (name+"/F").c_str());
 }
 
-reweighter::~reweighter() {
-  delete weight;
-}
+reweighter::~reweighter() { }
 
 //**************************************************************
 //
@@ -148,7 +158,15 @@ reweighter::~reweighter() {
 //-----------------------------------------------
 
 void fac_calc::calc() const noexcept {
-  cout << "fac_calc: " << mu_f->str << " = " << mu_f->mu() << endl;
+
+  const double mu = mu_f->mu();
+
+  // Born & Real
+  for (short i=0;i<2;++i) {
+    f[i][0] = pdfs[0]->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
+  }
+  m[0] = event.me_wgt2;
+
 }
 
 //-----------------------------------------------
@@ -156,11 +174,6 @@ void fac_calc::calc() const noexcept {
 //-----------------------------------------------
 
 void ren_calc::calc() const noexcept {
-  cout << "ren_calc: " << mu_r->str << " = " << mu_r->mu() << endl;
-}
-
-/*
-void ren_calc::calc() const {
   // There is only one global event variable
   // so these references always points to the right place
   static const char& part = event.part[0];
@@ -171,21 +184,32 @@ void ren_calc::calc() const {
   const double mu = mu_r->mu();
 
   // Calculate α_s change from renormalization
-  ar = pow( pdf->alphasQ(mu) / alphas, n );
+  ar = pow( pdfs[0]->alphasQ(mu) / alphas, n );
 
   // Calculate lr, same as l in Eq (30)
   if (part=='V' || part=='I')
     lr = 2.*log( mu / ren_scale );
 
 }
-*/
 
 //-----------------------------------------------
 // Stitch
 //-----------------------------------------------
 
 void reweighter::stitch() const noexcept {
-  cout << "Calculating weight for:"
-       << " Fac" << fac->mu_f->str
-       << " Ren" << ren->mu_r->str << endl;
+
+  // Born & Real
+  s = fac->m[0];
+  for (short i=0;i<2;++i) s *= fac->f[i][0];
+
+
+
+
+  weight[0] = s * ren->ar;
+
+  if (!isnormal(weight[0])) {
+    cerr << "\033[31mEvent " << event.id << "\033[0m: "
+         << "weight=" << weight[0] << endl;
+    weight[0] = 0.;
+  }
 }

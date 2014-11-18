@@ -15,6 +15,8 @@ void BHEvent::SetTree(TTree* tree, BHEvent::select_t branches) {
 }
 
 void BHEvent::Init(TTree* tree) {
+  this->tree = tree;
+
   tree->SetBranchAddress("id", &id);
   tree->SetBranchAddress("nparticle", &nparticle);
   tree->SetBranchAddress("px", px);

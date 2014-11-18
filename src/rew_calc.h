@@ -125,7 +125,9 @@ class reweighter {
   const fac_calc *fac;
   const ren_calc *ren;
 
-  Float_t *weight;
+  mutable double s;
+
+  mutable Float_t weight[3];
 
 public:
   // Constructor creates branches on tree

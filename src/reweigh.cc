@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   string BH_file, weights_file, pdf_set, conf_file_name;
-  bool old_bh, continue_on_err, counter_newline;
+  bool old_bh, counter_newline; // continue_on_err
   Long64_t num_events = 0;
   vector<Float_t> _fHt_fac, _fHt_ren;
 
@@ -44,8 +44,8 @@ int main(int argc, char** argv)
        "add a renormalization scale")*/
       ("old-bh", po::bool_switch(&old_bh),
        "read an old BH tree (no part & alphas_power branches)")
-      ("continue-on-err", po::bool_switch(&continue_on_err),
-       "continue after faulty event; default is break")
+    /*("continue-on-err", po::bool_switch(&continue_on_err),
+       "continue after faulty event; default is break")*/
       ("counter-newline", po::bool_switch(&counter_newline),
        "do not overwrite previous counter message")
       ("conf,c", po::value<string>(&conf_file_name),
@@ -90,6 +90,8 @@ int main(int argc, char** argv)
   TFile *fin = new TFile(BH_file.c_str(),"READ");
   if (fin->IsZombie()) exit(1);
 
+  cout << "Input BH event file: " << fin->GetName() << endl;
+
   TTree *tin = (TTree*)fin->Get("t3");
 
   // Find number of events to process
@@ -128,39 +130,45 @@ int main(int argc, char** argv)
     }
   }
 
+  // Load PDF
+  cout << endl;
+  usePDFset(pdf_set);
+  cout << endl;
+
   // Open output weights file
   TFile *fout = new TFile(weights_file.c_str(),"recreate");
   if (fout->IsZombie()) exit(1);
+
+  cout << "Output weights file: " << fout->GetName() << endl;
 
   TTree *tree = new TTree("weights","");
 
   // pointers to calc (automatically collected)
   // (as well as argument pointers)
   auto FacHt4 = mk_fac_calc(new mu_fHt(0.25));
-  auto RenHt4 = mk_ren_calc(new mu_fHt(0.5));
-  auto FacHt2 = mk_fac_calc(new mu_fHt(0.25));
+  auto RenHt4 = mk_ren_calc(new mu_fHt(0.25));
+  auto FacHt2 = mk_fac_calc(new mu_fHt(0.5));
   auto RenHt2 = mk_ren_calc(new mu_fHt(0.5));
 
   // define reweighting scales combinatios
   // and add branches to tree
-  vector<reweighter> rew {
-    reweighter(FacHt2,RenHt2,tree),
-    reweighter(FacHt2,RenHt4,tree),
-    reweighter(FacHt4,RenHt2,tree)
+  vector<reweighter*> rew {
+    new reweighter(FacHt2,RenHt2,tree),
+    new reweighter(FacHt2,RenHt4,tree),
+    new reweighter(FacHt4,RenHt2,tree)
   };
 
   // Reading events from the input ntuple ***************************
-  cout << "Prepared to read " << num_events << " events" << endl;
+  cout << "\nPrepared to read " << num_events << " events" << endl;
   time_t time1=time(0), time2;
   unsigned seconds = 0;
-  bool complete = true;
 
   for (Long64_t ent=0; ent<num_events; ++ent) {
     tin->GetEntry(ent);
 
     // REWEIGHTING
     calc_all_scales();
-    for (auto& r : rew) r.stitch();
+    for (auto r : rew) r->stitch();
     tree->Fill();
 
     // timed counter
@@ -178,15 +186,17 @@ int main(int argc, char** argv)
        << setw( 7) << seconds << 's' << endl << endl;
 
   fout->Write();
+  cout << "\n\033[32mWrote\033[0m: " << fout->GetName() << endl;
   fout->Close();
   delete fout;
 
   fin->Close();
   delete fin;
 
+  for (auto r : rew) delete r;
+
   // TODO: Implement error reporting in rew_calc
-  if (complete) cout << "\033[32mComplete!\033[0m" << endl;
-  else cout << "\033[31mIncomplete!\033[0m" << endl;
+
 
   return 0;
 }
