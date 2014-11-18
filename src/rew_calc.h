@@ -22,28 +22,33 @@ struct mu_fcn {
   std::string str;
   mu_fcn(const std::string& str);
   virtual double mu() const =0;
+  virtual ~mu_fcn() { }
 };
 
 struct mu_const: public mu_fcn {
   double _mu;
   mu_const(double mu);
   virtual double mu() const;
+  virtual ~mu_const() { }
 };
 
 struct mu_fHt: public mu_fcn {
   double fHt;
   mu_fHt(double fHt);
   virtual double mu() const;
+  virtual ~mu_fHt() { }
 };
 
 struct mu_fac_default: public mu_fcn {
   mu_fac_default();
   virtual double mu() const;
+  virtual ~mu_fac_default() { }
 };
 
 struct mu_ren_default: public mu_fcn {
   mu_ren_default();
   virtual double mu() const;
+  virtual ~mu_ren_default() { }
 };
 
 //-----------------------------------------------
@@ -55,6 +60,9 @@ protected:
   static std::vector<std::unique_ptr<const calc_base>> all;
   virtual void calc() const =0;
 
+public:
+  virtual ~calc_base() { }
+
 friend void calc_all_scales(); // run calc for all calcs
 };
 
@@ -62,7 +70,9 @@ void calc_all_scales();
 
 class reweighter;
 
+//-----------------------------------------------
 // Factorization --------------------------------
+//-----------------------------------------------
 
 class fac_calc: public calc_base {
 protected:
@@ -76,6 +86,7 @@ protected:
   virtual void calc() const;
 
 public:
+  virtual ~fac_calc();
 
 friend const fac_calc* mk_fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs, bool unc=false*/);
 
@@ -84,7 +95,9 @@ friend class reweighter;
 
 const fac_calc* mk_fac_calc(const mu_fcn* mu_f/*, const std::vector<PDF*>& pdfs, bool unc=false*/);
 
+//-----------------------------------------------
 // Renormalization ------------------------------
+//-----------------------------------------------
 
 class ren_calc: public calc_base {
 protected:
@@ -97,6 +110,7 @@ protected:
   virtual void calc() const;
 
 public:
+  virtual ~ren_calc();
 
 friend const ren_calc* mk_ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/);
 
@@ -105,7 +119,9 @@ friend class reweighter;
 
 const ren_calc* mk_ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/);
 
+//-----------------------------------------------
 // Reweighter: combines fac and ren -------------
+//-----------------------------------------------
 
 class reweighter {
   const fac_calc *fac;

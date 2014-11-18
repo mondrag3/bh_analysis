@@ -15,7 +15,7 @@ mu_fcn::mu_fcn(const string& str): str(str) { }
 mu_const::mu_const(double mu)
 : mu_fcn( [&mu] () {
     stringstream ss;
-    ss << "const" << mu;
+    ss << mu << "GeV";
     return ss.str();
   } () ),
   _mu(mu)
@@ -27,7 +27,7 @@ double mu_const::mu() const {
 mu_fHt::mu_fHt(double fHt)
 : mu_fcn( [&fHt] () {
     stringstream ss;
-    ss << "Ht" << fHt;
+    ss << fHt << "Ht";
     return ss.str();
   } () ),
   fHt(fHt)
@@ -70,8 +70,12 @@ fac_calc::fac_calc(const mu_fcn* mu_f/*, const vector<PDF*>& pdfs*/)
   all.push_back( unique_ptr<const calc_base>(this) );
 }
 
+fac_calc::~fac_calc() {
+  delete mu_f;
+}
+
 void fac_calc::calc() const {
-  cout << "fac_calc: " << mu_f->str << endl;
+  cout << "fac_calc: " << mu_f->str << " = " << mu_f->mu() << endl;
 }
 
 // Renormalization ------------------------------
@@ -87,8 +91,12 @@ ren_calc::ren_calc(const mu_fcn* mu_r/*, const PDF* pdf*/)
   all.push_back( unique_ptr<const calc_base>(this) );
 }
 
+ren_calc::~ren_calc() {
+  delete mu_r;
+}
+
 void ren_calc::calc() const {
-  cout << "ren_calc: " << mu_r->str << endl;
+  cout << "ren_calc: " << mu_r->str << " = " << mu_r->mu() << endl;
 }
 
 /*
