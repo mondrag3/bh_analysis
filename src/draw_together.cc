@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
   // START OPTIONS **************************************************
   vector<string> fin;
   string fout;
-  bool norm, logx, logy;
+  bool norm, logx, logy, name_title;
 
   try {
     // General Options ------------------------------------
@@ -40,6 +40,8 @@ int main(int argc, char *argv[])
        "")
       ("logy", po::bool_switch(&logy),
        "")
+      ("name-title", po::bool_switch(&name_title),
+       "replace hist title with name")
     ;
 
     po::variables_map vm;
@@ -128,6 +130,7 @@ int main(int argc, char *argv[])
         fin[i].substr(0,fin[i].find(':')).c_str(),
         h->GetEntries()
       ) );
+      if (name_title) h->SetTitle(h->GetName());
       if (i==0) h->Draw();
       else h->Draw("same");
     }
