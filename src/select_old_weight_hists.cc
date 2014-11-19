@@ -84,7 +84,7 @@ int main(int argc, char** argv)
       ("pdf", po::value<string>(&pdf_name)->default_value("MSTW2008nlo68cl"),
        "select pdf name")
       ("uncut", po::bool_switch(&uncut),
-       "select full weights histograms instead of those in \"Jets\"")
+       "select full weights histograms instead of those in \"Jets\" directory")
     ;
 
     po::variables_map vm;
