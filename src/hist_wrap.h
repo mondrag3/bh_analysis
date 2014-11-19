@@ -4,7 +4,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <map>
+
+#include <unordered_map>
 
 class TH1F;
 
@@ -14,20 +15,21 @@ class hist {
     binning();
     ~binning();
   };
-  static std::map<std::string,binning> binnings;
+  static std::unordered_map<std::string,binning> binnings;
   static std::vector<const hist*> all;
   static std::string binning_name_regex_pattern;
+  static bool use_regex;
   static binning default_binning;
 
   const binning get_binning(const std::string& hist_name);
 
-  const binning b;
+  binning b;
   std::pair<int,double> underflow, overflow;
   TH1F * h;
 
 public:
   hist();
-  hist(const std::string& name,const std::string& title);
+  hist(const std::string& name, const std::string& title="");
   ~hist();
 
   void Fill(double x, double w=1.);
@@ -35,6 +37,9 @@ public:
   static void read_binnings(const char* filename, const char* regex="");
   static std::ostream& print_overflow(std::ostream& out=std::cout);
   static void delete_all();
+
+  TH1F& operator*() const;
+  TH1F* operator->() const;
 };
 
 #endif

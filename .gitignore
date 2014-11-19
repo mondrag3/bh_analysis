@@ -5,3 +5,6 @@ bin
 # Computation output
 out
 *.root
+
+# Input files
+data

@@ -17,6 +17,7 @@ using namespace std;
 template<typename T> inline T sq(T x) { return x*x; }
 
 // PDF variables
+string pdfname("def");
 const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
 
@@ -33,6 +34,7 @@ struct PDFgc {
 void usePDFset(const std::string& setname) {
   __pdf.clear();
   pdfset = new LHAPDF::PDFSet(setname);
+  pdfname = pdfset->name();
   pdfs = pdfset->mkPDFs();
 }
 
@@ -66,12 +68,12 @@ double mu_fHt::mu() const noexcept {
   return fHt*event.Ht();
 }
 
-mu_fac_default::mu_fac_default(): mu_fcn("default") { }
+mu_fac_default::mu_fac_default(): mu_fcn("def") { }
 double mu_fac_default::mu() const noexcept {
   return event.fac_scale;
 }
 
-mu_ren_default::mu_ren_default(): mu_fcn("default") { }
+mu_ren_default::mu_ren_default(): mu_fcn("def") { }
 double mu_ren_default::mu() const noexcept {
   return event.ren_scale;
 }
@@ -138,7 +140,7 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   stringstream ss;
   ss <<  "Fac" << fac->mu_f->str
      << "_Ren" << ren->mu_r->str
-     << "_PDF" << pdfset->name();
+     << "_PDF" << pdfname;
   if (fac->unc) ss << "_unc";
   else ss << "_cent";
   string name( ss.str() );

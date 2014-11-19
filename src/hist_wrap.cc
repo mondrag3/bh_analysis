@@ -18,6 +18,9 @@ hist::binning::~binning() { }
 hist::hist(): b(), underflow(0,0.), overflow(0,0.), h(NULL) { }
 hist::~hist() { } // doesn't delete TH1F* because TFile will do that
 
+TH1F& hist::operator*()  const { return *h; }
+TH1F* hist::operator->() const { return  h; }
+
 hist::hist(const string& name,const string& title)
 : b(get_binning(name)), underflow(0,b.min), overflow(0,b.max),
   h( new TH1F(name.c_str(),title.c_str(),b.nbins,b.min,b.max) )
@@ -46,6 +49,8 @@ void hist::read_binnings(const char* filename, const char* regex) {
   string hname;
   binning b;
   while ( binsfile >> hname ) {
+    if (hname[0]=='#') continue;
+
     binsfile >> b.nbins;
     binsfile >> b.min;
     binsfile >> b.max;
@@ -54,7 +59,30 @@ void hist::read_binnings(const char* filename, const char* regex) {
     else default_binning = b;
   }
 
-  if (regex) binning_name_regex_pattern = regex;
+  if (regex) {
+    use_regex = true;
+    binning_name_regex_pattern = regex;
+  } else use_regex = false;
+}
+
+const hist::binning hist::get_binning(const string& hist_name) {
+  if (use_regex) {
+
+    static const boost::regex patern(binning_name_regex_pattern);
+
+    boost::smatch result;
+    if (boost::regex_search(hist_name, result, patern)) {
+      string key(result[1].first, result[1].second);
+
+      if (binnings.count(key)) return binnings[key];
+      else return default_binning;
+
+    } else return default_binning;
+
+  } else {
+    if (binnings.count(hist_name)) return binnings[hist_name];
+    else return default_binning;
+  }
 }
 
 ostream& hist::print_overflow(ostream& out) {
@@ -77,23 +105,8 @@ void hist::delete_all() {
     delete *it;
 }
 
-const hist::binning hist::get_binning(const string& hist_name) {
-  if (binning_name_regex_pattern.size()) {
-
-    static const boost::regex patern(binning_name_regex_pattern);
-
-    boost::smatch result;
-    if (boost::regex_search(hist_name, result, patern))
-      return binnings[string(result[0].first, result[0].second)];
-    else return default_binning;
-
-  } else {
-    if (binnings.count(hist_name)) return binnings[hist_name];
-    else return default_binning;
-  }
-}
-
-map<string,hist::binning> hist::binnings;
+unordered_map<string,hist::binning> hist::binnings;
 vector<const hist*> hist::all;
 string hist::binning_name_regex_pattern;
+bool hist::use_regex;
 hist::binning hist::default_binning;
