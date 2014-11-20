@@ -78,10 +78,12 @@ protected:
   bool unc;
   bool defaultPDF;
 
-  mutable double f[2][5], m[5], lf;
+  mutable double f[2][5], m[9], lf, si;
 
   fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF);
   virtual void calc() const noexcept;
+
+  Double_t quark_sum(Double_t x, Double_t mu_fac) const;
 
 public:
   virtual ~fac_calc();

@@ -20,6 +20,7 @@ template<typename T> inline T sq(T x) { return x*x; }
 string pdfname("def");
 const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
+LHAPDF::PDF* pdf; // central PDF
 
 // PDF garbage collector
 struct PDFgc {
@@ -36,6 +37,7 @@ void usePDFset(const std::string& setname) {
   pdfset = new LHAPDF::PDFSet(setname);
   pdfname = pdfset->name();
   pdfs = pdfset->mkPDFs();
+  pdf = pdfs[0];
 }
 
 //-----------------------------------------------
@@ -152,17 +154,22 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
 
 reweighter::~reweighter() { }
 
-//**************************************************************
+/////////////////////////////////////////////////////////////////////
 //
-// PHYSICS \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/
+// Reweighting adopted from arXiv:1310.7439v1
+// "Ntuples for NLO Events at Hadron Colliders" pp. 20 - 25
 //
-//**************************************************************
+/////////////////////////////////////////////////////////////////////
 
 //-----------------------------------------------
 // Factorization
 //-----------------------------------------------
 
 void fac_calc::calc() const noexcept {
+  // There is only one global event variable
+  // so these references always points to the right place
+  static const char& part = event.part[0];
+  static Double_t* const& usr_wgts = event.usr_wgts;
 
   const double mu = mu_f->mu();
 
@@ -170,14 +177,59 @@ void fac_calc::calc() const noexcept {
   if (defaultPDF) m[0] = event.weight;
   else {
     for (short i=0;i<2;++i) {
-      f[i][0] = pdfs[0]->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
+      f[i][0] = pdf->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
     }
     m[0] = event.me_wgt2;
   }
 
-  // TODO: Integrated subtraction
+  // Integrated subtraction
+  if (part=='I') {
 
+    // Calculate terms in Eq. (43)
+    lf = 2.*log( mu / event.fac_scale );
+    for (short i=1;i<9;++i)
+      m[i] = usr_wgts[i+1] + usr_wgts[i+9]*lf;
 
+    // Calculate terms in Eq. (44)
+    static Double_t x, xp;
+    static Int_t id;
+    double si_[2] = { 0., 0. };
+    for (short i=0;i<2;++i) {
+      id = event.iid[i];
+      x  = event.x  [i];
+      xp = event.xp [i];
+
+      f[i][1] = ( id==21
+              ? quark_sum(    x, mu)/x
+              : pdf->xfxQ(id, x, mu)/x
+      );
+      f[i][2] = ( id==21
+              ? quark_sum(    x/xp, mu)/x
+              : pdf->xfxQ(id, x/xp, mu)/x
+      );
+      f[i][3] = pdf->xfxQ(21, x,    mu)/x;
+      f[i][4] = pdf->xfxQ(21, x/xp, mu)/x;
+    }
+    for (short i=0;i<2;++i)
+      for (short j=1;j<5;++j)
+        si_[i] += f[i][j]*m[j+(i ? 4 : 0)];
+
+    si = f[1][0]*si_[0] + f[0][0]*si_[1];
+
+  }
+}
+
+Double_t fac_calc::quark_sum(Double_t x, Double_t mu_fac) const {
+  static const int nquarks = 10;
+  static Int_t q[nquarks] = {
+    1, 2, 3, 4, 5,
+   -1,-2,-3,-4,-5
+  };
+
+  Double_t f = 0.;
+  for (int i=0;i<nquarks;++i) f += pdf->xfxQ(q[i], x, mu_fac);
+
+  return f;
 }
 
 //-----------------------------------------------
@@ -195,7 +247,7 @@ void ren_calc::calc() const noexcept {
   const double mu = mu_r->mu();
 
   // Calculate α_s change from renormalization
-  if (!defaultPDF) ar = pow( pdfs[0]->alphasQ(mu) / alphas, n );
+  if (!defaultPDF) ar = pow( pdf->alphasQ(mu) / alphas, n );
 
   // Calculate lr, same as l in Eq (30)
   if (part=='V' || part=='I')
@@ -220,8 +272,7 @@ void reweighter::stitch() const noexcept {
 
   for (short i=0;i<2;++i) s *= fac->f[i][0]; // m0 becomes s
 
-  // TODO: if part=='I' s += sum over quarks
-
+  if (part=='I') s += fac->si;
 
   weight[0] = s * ren->ar;
 
@@ -229,5 +280,10 @@ void reweighter::stitch() const noexcept {
     cerr << "\033[31mEvent " << event.id << "\033[0m: "
          << "weight=" << weight[0] << endl;
     weight[0] = 0.;
+  } /*else {
+    cout << "\033[32mEvent " << event.id << "\033[0m: "
+         << "weight=" << weight[0];
   }
+  cout << " fac=" << static_cast<const mu_fHt*>(fac->mu_f)->fHt
+       << " ren=" << static_cast<const mu_fHt*>(ren->mu_r)->fHt << endl;*/
 }
