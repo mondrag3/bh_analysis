@@ -177,7 +177,7 @@ void fac_calc::calc() const noexcept {
   if (defaultPDF) m[0] = event.weight;
   else {
     for (short i=0;i<2;++i) {
-      f[i][0] = pdf->xfxQ(event.iid[i], event.x[i], mu)/event.x[i];
+      f[i][0] = pdf->xfxQ(event.id[i], event.x[i], mu)/event.x[i];
     }
     m[0] = event.me_wgt2;
   }
@@ -195,7 +195,7 @@ void fac_calc::calc() const noexcept {
     static Int_t id;
     double si_[2] = { 0., 0. };
     for (short i=0;i<2;++i) {
-      id = event.iid[i];
+      id = event.id[i];
       x  = event.x  [i];
       xp = event.xp [i];
 
@@ -223,7 +223,7 @@ Double_t fac_calc::quark_sum(Double_t x, Double_t mu_fac) const {
   static const int nquarks = 10;
   static Int_t q[nquarks] = {
     1, 2, 3, 4, 5,
-   -1,-2,-3,-4,-5
+   -1,-2,-3,-4,-5,
   };
 
   Double_t f = 0.;
@@ -277,11 +277,11 @@ void reweighter::stitch() const noexcept {
   weight[0] = s * ren->ar;
 
   if (!isnormal(weight[0])) {
-    cerr << "\033[31mEvent " << event.id << "\033[0m: "
+    cerr << "\033[31mEvent " << event.eid << "\033[0m: "
          << "weight=" << weight[0] << endl;
     weight[0] = 0.;
   } /*else {
-    cout << "\033[32mEvent " << event.id << "\033[0m: "
+    cout << "\033[32mEvent " << event.eid << "\033[0m: "
          << "weight=" << weight[0];
   }
   cout << " fac=" << static_cast<const mu_fHt*>(fac->mu_f)->fHt

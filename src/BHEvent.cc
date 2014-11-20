@@ -17,7 +17,7 @@ void BHEvent::SetTree(TTree* tree, BHEvent::select_t branches) {
 void BHEvent::Init(TTree* tree) {
   this->tree = tree;
 
-  tree->SetBranchAddress("id", &id);
+  tree->SetBranchAddress("id", &eid);
   tree->SetBranchAddress("nparticle", &nparticle);
   tree->SetBranchAddress("px", px);
   tree->SetBranchAddress("py", py);
@@ -33,8 +33,8 @@ void BHEvent::Init(TTree* tree) {
   tree->SetBranchAddress("x2", &x[1]);
   tree->SetBranchAddress("x1p", &xp[0]);
   tree->SetBranchAddress("x2p", &xp[1]);
-  tree->SetBranchAddress("id1", &iid[0]);
-  tree->SetBranchAddress("id2", &iid[1]);
+  tree->SetBranchAddress("id1", &id[0]);
+  tree->SetBranchAddress("id2", &id[1]);
   tree->SetBranchAddress("fac_scale", &fac_scale);
   tree->SetBranchAddress("ren_scale", &ren_scale);
   tree->SetBranchAddress("nuwgt", &nuwgt);

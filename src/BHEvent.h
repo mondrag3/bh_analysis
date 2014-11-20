@@ -13,7 +13,7 @@ class BHEvent {
   void Init(TTree* tree);
 
 public:
-  Int_t           id;
+  Int_t           eid;
   Int_t           nparticle;
   Float_t         px[BHMAXNP];   //[nparticle]
   Float_t         py[BHMAXNP];   //[nparticle]
@@ -27,7 +27,7 @@ public:
   Double_t        me_wgt2;
   Double_t        x[2];
   Double_t        xp[2];
-  Int_t           iid[2];
+  Int_t           id[2];
   Double_t        fac_scale;
   Double_t        ren_scale;
   Int_t           nuwgt;
