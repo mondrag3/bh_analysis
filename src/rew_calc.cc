@@ -199,22 +199,23 @@ void fac_calc::calc() const noexcept {
       x  = event.x  [i];
       xp = event.xp [i];
 
-      f[i][1] = ( id==21
+      f[i][1] = ( id==21 // Eq. (46)
               ? quark_sum(    x, mu)/x
               : pdf->xfxQ(id, x, mu)/x
       );
-      f[i][2] = ( id==21
+      f[i][2] = ( id==21 // Eq. (47)
               ? quark_sum(    x/xp, mu)/x
               : pdf->xfxQ(id, x/xp, mu)/x
       );
-      f[i][3] = pdf->xfxQ(21, x,    mu)/x;
-      f[i][4] = pdf->xfxQ(21, x/xp, mu)/x;
+      f[i][3] = pdf->xfxQ(21, x,    mu)/x; // Eq. (48)
+      f[i][4] = pdf->xfxQ(21, x/xp, mu)/x; // Eq. (49)
     }
     for (short i=0;i<2;++i)
       for (short j=1;j<5;++j)
-        si_[i] += f[i][j]*m[j+(i ? 4 : 0)];
+        si_[i] += f[i][j]*m[j+(i ? 4 : 0)]; // si_[0] = f_1^(j)*ω_j
+                                            // si_[1] = f_2^(j)*ω_j+4
 
-    si = f[1][0]*si_[0] + f[0][0]*si_[1];
+    si = f[1][0]*si_[0] + f[0][0]*si_[1]; // f_1^(j)*ω_j*f_2 + f_1*f_2^(j)*ω_j+4
 
   }
 }
