@@ -3,16 +3,13 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "TLorentzVector.h"
 
 class TTree;
 
-class SJClusterAlg;
-typedef std::vector<const SJClusterAlg*>::iterator SJAlgIter;
-
-class SJClusterAlg {
-private:
+struct SJClusterAlg {
   Int_t N;
   std::vector<Float_t> *eta, *phi, *e, *mass, *pt, *numC;
   std::vector<Int_t> *ind;
@@ -22,26 +19,15 @@ private:
   // For some ROOT hocus-pocus reason, these pointers have
   // to be initialized to zero
 
-  const std::string alg;
+  const std::string name;
 
-  static std::vector<const SJClusterAlg*> AllAlgs;
+  std::vector<TLorentzVector> jetsByPt(double pt_cut, double eta_cut) const;
 
   SJClusterAlg(TTree* tree, const char* algorithm);
   ~SJClusterAlg();
 
-class sortByPt;
-
-public:
-
-  static const SJClusterAlg* AddAlg(TTree* tree, const char* algorithm);
-  static void clean();
-
-  const std::string& name() const;
-
-  std::vector<TLorentzVector> jetsByPt(double pt_cut, double eta_cut) const;
-
-  static SJAlgIter begin();
-  static SJAlgIter   end();
+  static std::vector<std::unique_ptr<const SJClusterAlg>> all;
+  static const SJClusterAlg* add(TTree* tree, const std::string& algorithm);
 };
 
 #endif

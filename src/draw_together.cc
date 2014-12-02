@@ -18,20 +18,32 @@ namespace po = boost::program_options;
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
-pair<Double_t,Double_t> TH1Range(const TH1* h) noexcept {
-  Double_t min = h->GetBinContent(1);
+pair<Double_t,Double_t> TH1Range(const TH1* h, int minbin=1) noexcept {
+  Double_t min;
+  int i = minbin,
+      n = h->GetNbinsX()+1;
+  for (;i<n;++i) {
+    Double_t min = h->GetBinContent(i);
+    if (min>0.) break;
+  }
   Double_t max = min;
-  for (int i=2,n=h->GetNbinsX()+1;i<n;++i) {
+  for (;i<n;++i) {
     Double_t x = h->GetBinContent(i);
     if (x<min) min = x;
     if (x>max) max = x;
   }
   return make_pair(min,max);
 }
-pair<Double_t,Double_t> TH1PositiveRange(const TH1* h) noexcept {
-  Double_t min = h->GetBinContent(1);
+pair<Double_t,Double_t> TH1PositiveRange(const TH1* h, int minbin=1) noexcept {
+  Double_t min;
+  int i = minbin,
+      n = h->GetNbinsX()+1;
+  for (;i<n;++i) {
+    min = h->GetBinContent(i);
+    if (min>0.) break;
+  }
   Double_t max = min;
-  for (int i=2,n=h->GetNbinsX()+1;i<n;++i) {
+  for (;i<n;++i) {
     Double_t x = h->GetBinContent(i);
     if (x>0.) {
       if (x<min) min = x;
@@ -41,9 +53,15 @@ pair<Double_t,Double_t> TH1PositiveRange(const TH1* h) noexcept {
   return make_pair(min,max);
 }
 
-Double_t TH1LogXmin(const TH1* h) noexcept {
-  
+/*
+inline void TH1SetLogXRange(TH1* h) noexcept {
+  h->SetAxisRange(
+    h->GetBinLowEdge(h->FindFixBin(0.)+1)/10.,
+    h->GetBinLowEdge(h->GetNbinsX()+1),
+    "X"
+  );
 }
+*/
 
 int main(int argc, char *argv[])
 {
@@ -121,7 +139,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  pair<Double_t,Double_t> (*TH1RangeFcn)(const TH1*);
+  pair<Double_t,Double_t> (*TH1RangeFcn)(const TH1*,int);
   if (logy) TH1RangeFcn = &TH1PositiveRange;
   else      TH1RangeFcn = &TH1Range;
 
@@ -130,20 +148,25 @@ int main(int argc, char *argv[])
     TH1* h = _h.second[0];
     if (norm) h->Scale(1./h->Integral());
     //double ymax = h->GetMaximum();
-    auto range = TH1RangeFcn(h);
+    auto range = TH1RangeFcn(h,(logx ? h->FindFixBin(0.) : 1));
 
     for (size_t i=1;i<nh;++i) {
       h = _h.second[i];
       if (norm) h->Scale(1./h->Integral());
-      auto _range = TH1RangeFcn(h);
+      auto _range = TH1RangeFcn(h,(logx ? h->FindFixBin(0.) : 1));
       if (_range.first <range.first ) range.first  = _range.first;
       if (_range.second>range.second) range.second = _range.second;
     }
 
-    if (logy) _h.second[0]->SetAxisRange(pow(range.first,0.98),pow(range.second,1.025),"Y");
-    else      _h.second[0]->SetAxisRange(range.first*0.98,range.second*1.025,"Y");
+    //if (logx) TH1SetLogXRange(_h.second[0]);
 
-    if (logx) _h.second[0]->SetAxisRange(FindFixBin(0.)+1
+    if (logy) {
+      _h.second[0]->SetMinimum(pow(range.first,0.98));
+      _h.second[0]->SetMaximum(pow(range.second,1.025));
+    } else {
+      _h.second[0]->SetMinimum(range.first*0.98);
+      _h.second[0]->SetMaximum(range.second*1.025);
+    }
   }
 
   TCanvas canv;
@@ -168,7 +191,6 @@ int main(int argc, char *argv[])
         h->Integral()/1e6
       ) );
       if (name_title) h->SetTitle(h->GetName());
-      //if (logy) h->SetMinimum(1);
       if (i==0) h->Draw();
       else h->Draw("same");
     }

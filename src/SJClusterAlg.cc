@@ -24,27 +24,20 @@ SJClusterAlg::SJClusterAlg(TTree* tree, const char* algorithm)
 }
 SJClusterAlg::~SJClusterAlg() { }
 
-class SJClusterAlg::sortByPt { // class used for jet sorting
-  const SJClusterAlg * const p;
+vector<const SJClusterAlg*> SJClusterAlg::all;
+
+void SJClusterAlg::add(TTree* tree, const char* algorithm) {
+  all.emplace_back( new SJClusterAlg(tree,algorithm) );
+}
+
+class sortByPt { // class used for jet sorting
+  const SJClusterAlg *p;
   public:
   sortByPt(const SJClusterAlg* p): p(p) { }
-  bool operator() (Int_t i, Int_t j) {
+  bool operator() (Int_t i, Int_t j) const {
     return ( p->pt->at(i) > p->pt->at(j) ); // decending order
   }
 };
-
-vector<const SJClusterAlg*> SJClusterAlg::AllAlgs;
-
-const SJClusterAlg* SJClusterAlg::AddAlg(TTree* tree, const char* algorithm) {
-  AllAlgs.push_back( new SJClusterAlg(tree,algorithm) );
-  return AllAlgs.back();
-}
-void SJClusterAlg::clean() {
-  for (SJAlgIter it = begin(); it!=end(); ++it)
-    delete *it;
-}
-
-const string& SJClusterAlg::name() const { return alg; }
 
 vector<TLorentzVector> SJClusterAlg::jetsByPt(double pt_cut, double eta_cut) const {
   Int_t j[N]; // order of jets
@@ -52,6 +45,7 @@ vector<TLorentzVector> SJClusterAlg::jetsByPt(double pt_cut, double eta_cut) con
   sort(j,j+N,sortByPt(this));
 
   vector<TLorentzVector> jets;
+  jets.reserve(N);
   for (Int_t i=0;i<N;++i) {
     const double _pt  = pt->at(j[i]);
     const double _eta = eta->at(j[i]);
@@ -66,6 +60,3 @@ vector<TLorentzVector> SJClusterAlg::jetsByPt(double pt_cut, double eta_cut) con
 
   return jets;
 }
-
-SJAlgIter SJClusterAlg::begin() { return AllAlgs.begin(); }
-SJAlgIter SJClusterAlg::  end() { return AllAlgs.end();   }
