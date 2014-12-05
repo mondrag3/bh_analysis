@@ -23,11 +23,11 @@ struct SJClusterAlg {
 
   std::vector<TLorentzVector> jetsByPt(double pt_cut, double eta_cut) const;
 
-  SJClusterAlg(TTree* tree, const char* algorithm);
+  SJClusterAlg(TTree* tree, const std::string& name);
   ~SJClusterAlg();
 
   static std::vector<std::unique_ptr<const SJClusterAlg>> all;
-  static const SJClusterAlg* add(TTree* tree, const std::string& algorithm);
+  static void add(TTree* tree, const std::string& name);
 };
 
 #endif

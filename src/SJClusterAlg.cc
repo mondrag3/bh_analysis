@@ -7,11 +7,11 @@
 using namespace std;
 
 #define branch(var) \
-  tree->SetBranchAddress((alg+'_'+#var).c_str(), &var);
+  tree->SetBranchAddress((name+'_'+#var).c_str(), &var);
 
-SJClusterAlg::SJClusterAlg(TTree* tree, const char* algorithm)
+SJClusterAlg::SJClusterAlg(TTree* tree, const string& name)
 : N(0), eta(0), phi(0), e(0), mass(0), pt(0), numC(0), ind(0),
-  alg(algorithm)
+  name(name)
 {
   branch(N)
   branch(eta)
@@ -24,10 +24,10 @@ SJClusterAlg::SJClusterAlg(TTree* tree, const char* algorithm)
 }
 SJClusterAlg::~SJClusterAlg() { }
 
-vector<const SJClusterAlg*> SJClusterAlg::all;
+vector<unique_ptr<const SJClusterAlg>> SJClusterAlg::all;
 
-void SJClusterAlg::add(TTree* tree, const char* algorithm) {
-  all.emplace_back( new SJClusterAlg(tree,algorithm) );
+void SJClusterAlg::add(TTree* tree, const string& name) {
+  all.emplace_back( new SJClusterAlg(tree,name) );
 }
 
 class sortByPt { // class used for jet sorting
