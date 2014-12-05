@@ -34,6 +34,7 @@ namespace po = boost::program_options;
 
 template<typename T> inline T sq(const T& x) { return x*x; }
 
+// Weights collector ************************************************
 struct weight {
   string name;
   Float_t w;
@@ -49,11 +50,47 @@ struct weight {
 
 // TODO: place histograms in directories
 
-class hist_alg_wt {
-  unordered_map<tuple<const SJClusterAlg*,const weight*>,TH1*> h;
-  static unique_ptr<flock::csshists> css;
+// Histogram wrappers ***********************************************
+struct hist {
+  static unique_ptr<const flock::csshists> css;
+  static const SJClusterAlg* alg_ptr;
+  virtual Fill(Double_t x) =0;
+};
+unique_ptr<const flock::csshists> hist::css;
+const SJClusterAlg* hist::alg_ptr;
+
+class hist_alg: public hist {
+  unordered_map<const SJClusterAlg*,TH1*> h;
 public:
-  hist(const string& name) {
+  hist_alg(const string& name) {
+    TH1* hist = css->mkhist(name);
+    for (auto alg : SJClusterAlg::all)
+      h[alg.get()] = hist->Clone((alg->name+"__"+name).c_str());
+    delete hist;
+  }
+
+  virtual void Fill(Double_t x) { h[alg_ptr]->Fill(x); }
+};
+
+class hist_wt: public hist {
+  unordered_map<const weight*,TH1*> h;
+public:
+  hist_alg_wt(const string& name) {
+    TH1* hist = css->mkhist(name);
+    for (auto wt : weight::all)
+      h[wt.get()] = hist->Clone((wt->name+"__"+name).c_str());
+    delete hist;
+  }
+
+  virtual void Fill(Double_t x) {
+    for (auto wt : weight::all) h[wt.get()]->Fill(x,wt->w);
+  }
+};
+
+class hist_alg_wt: public hist {
+  unordered_map<tuple<const SJClusterAlg*,const weight*>,TH1*> h;
+public:
+  hist_alg_wt(const string& name) {
     TH1* hist = css->mkhist(name);
     for (auto alg : SJClusterAlg::all) {
       for (auto wt : weight::all) {
@@ -64,17 +101,13 @@ public:
     delete hist;
   }
 
-  static const SJClusterAlg* alg_ptr;
-
-  void Fill(Double_t x) {
-    for (auto wt : weight::all) {
+  virtual void Fill(Double_t x) {
+    for (auto wt : weight::all)
       h[tie(alg_ptr,wt.get())]->Fill(x,wt->w);
-    }
   }
 };
-unique_ptr<flock::csshists> hist::css;
-const SJClusterAlg* hist::alg_ptr;
 
+// istream pair operator ********************************************
 template<typename T>
 istream& operator >> (istream& is, pair<T,T>& p)
 {
@@ -100,7 +133,7 @@ int main(int argc, char** argv)
   // START OPTIONS **************************************************
   vector<string> bh_files, sj_files, wt_files,
                  jet_algs, weights;
-  string hist_file;
+  string output_file, css_file;
   pair<Long64_t,Long64_t> num_events {0,0};
   bool quiet;
 
@@ -115,12 +148,14 @@ int main(int argc, char** argv)
        "add input SpartyJet root file")
       ("wt", po::value< vector<string> >(&weight_files)->required(),
        "add input weights root file")
-      ("hists,o", po::value<string>(&hist_file)->required(),
+      ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
       ("jet-alg,j", po::value<vector<string>>(&jet_algs)->required(),
        "jet algorithms from SJ file, e.g. AntiKt4") // TODO: read all if not provided
       ("weight,w", po::value<vector<string>>(&weights)->required(),
        "weight from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent") // TODO: read all if not provided
+      ("style,s", po::value<string>(&css_file)->required(),
+       "CSS style file for histogram binning and formating")
       ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
        "process only this many events, num or first:num")
       ("quiet,q", po::bool_switch(&quiet),
@@ -198,69 +233,13 @@ int main(int argc, char** argv)
   // Weights tree branches
   for (auto& w : weights) weight::add(tree,w);
 
+  // Read CSS file with histogram properties
+  hist::css.reset( new csshists(css_file) );
+
   // Open output file with histograms *******************************
-  TFile* fout = new TFile(hist_file.c_str(),"recreate");
+  TFile* fout = new TFile(output_file.c_str(),"recreate");
 
   // Book histograms ************************************************
-  // Bins
-  bins H_pT_bins {0.,20.,30.,40.,50.,60.,80.,100.,200.};
-  bins H_pT_j_bins {0.,50.,70.,100.,145.,200.};
-  bins H_pT_jj_bins {0.,90.,130.,170.,200};
-  bins H_pT_jj_fine_bins {
-    0.,5.,10.,15.,20.,25.,30.,35.,40.,45.,50.,
-    55.,60.,65.,70.,75.,80.,90.,100.,
-    110.,120.,130.,140.,150.,160.,170.,180.,190.,200.
-  };
-
-  bins Hj_pT_bins {0.,18.,35.,60.,150.};
-  bins Hjj_pT_bins {0.,30.,55.,80.,140.,200};
-
-  bins H_pT_0j_bins {0.,20.,30.,45.,200.};
-  bins H_pT_1j_bins {0.,40.,60.,95.,200.};
-  bins H_pT_2j_bins {0.,90.,140.,200.};
-
-  bins H_y_bins {0.,0.3,0.6,0.9,1.2,1.6,2.4};
-  bins H_y_fine_bins {
-    0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,
-    1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,
-    2.0,2.1,2.2,2.3,2.4
-  };
-
-  bins pTt_bins {0,10,20,30,40,60,80,150,500};
-  bins deltay_yy_bins {0,0.3,0.6,0.9,1.2,1.5,2.0,2.55};
-
-  bins jet1_pT_bins {0.,30.,50.,70.,100.,140.,500.};
-  bins jet2_pT_bins {0,30,40,50,140,500.};
-  bins jet3_pT_bins {0,30,50,150,500.};
-
-  bins deltay_jj_bins {0.,2.,4.,5.5,8.8,10};
-  bins deltay_jj_fine_bins {0.,2.,4.,5.5,8.8};
-
-  bins jet1_y_bins {0.,1.,2.,3.,4.4,5};
-  bins jet1_y_fine_bins {0.,0.5,1.,1.5,2.,2.5,3.,3.5,4.,4.4};
-
-  bins tau_jet_bins {0,8,16,30,85};
-
-  bins deltaphi_Hjj_bins {0.,2.8,3,3.1,M_PI};
-
-  bins dijet_mass_bins {0,200.,400.,650.,1000.};
-  bins dijet_mass_fine_bins {
-    0,50.,100.,150.,200.,250.,300.,350.,400.,450.,500.,
-    550.,600.,650.,700.,750.,800.,850.,900.,950.,1000.
-  };
-
-  bins deltay_H_jj_bins {0,0.4,0.7,1.3,4.5};
-
-  bins deltaphi_jj_bins {0.,M_PI/3.,2.*M_PI/3.,5.*M_PI/6.,M_PI};
-  bins deltaphi_jj_fine_bins {
-    0.,0.2,0.4,0.6,0.8,1.,1.2,1.4,1.6,1.8,2.0,2.2,2.4,2.6,2.8,3.0,3.2
-  };
-
-  bins H_dijet_mass_bins {0,450.,700.,1100.,1200.};
-
-  bins HT_jets_bins {0,30,50,70,150,250,500};
-
-  // Histograms
   hist h_pid("pid",40,-10,30,"Particle id");
 
   hist h_xs("xs",1,0.,1.,"XS");
@@ -437,6 +416,7 @@ int main(int argc, char** argv)
     h_H_y      .Fill(abs(H_eta) ,weight);
     h_H_y_fine .Fill(abs(H_eta) ,weight);
 
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // Loop over SpartyJet clustering algorithms
     for (hist_map::it = SJClusterAlg::begin();
          hist_map::it!= SJClusterAlg::end(); ++hist_map::it)
