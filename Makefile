@@ -62,7 +62,7 @@ bin/draw_together: bin/%: lib/%.o
 
 bin/read_withFriending: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex -lflockhist
+	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex -lkiwihist
 
 # OBJ dependencies
 lib/rew_calc.o     : src/BHEvent.h
@@ -82,4 +82,3 @@ bin/read_withFriending: lib/BHEvent.o lib/SJClusterAlg.o
 
 clean:
 	rm -rf bin lib
-

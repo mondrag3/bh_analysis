@@ -19,7 +19,7 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
-#include <flock/csshists.h>
+#include <kiwi/csshists.h>
 
 #include "BHEvent.h"
 #include "SJClusterAlg.h"
@@ -52,11 +52,11 @@ vector<unique_ptr<const weight>> weight::all;
 
 // Histogram wrappers ***********************************************
 struct hist {
-  static unique_ptr<const flock::csshists> css;
+  static unique_ptr<const kiwi::csshists> css;
   static const SJClusterAlg* alg_ptr;
   virtual void Fill(Double_t x) noexcept =0;
 };
-unique_ptr<const flock::csshists> hist::css;
+unique_ptr<const kiwi::csshists> hist::css;
 const SJClusterAlg* hist::alg_ptr;
 
 /*
@@ -282,7 +282,7 @@ int main(int argc, char** argv)
 
   // Read CSS file with histogram properties
   cout << "Histogram CSS file: " << css_file << endl;
-  hist::css.reset( new flock::csshists(css_file) );
+  hist::css.reset( new kiwi::csshists(css_file) );
   cout << endl;
 
   // Open output file with histograms *******************************
@@ -584,7 +584,7 @@ int main(int argc, char** argv)
           sum_tj += tauJet;
           if (tauJet > max_tj) max_tj = tauJet;
         }
-        
+
       }
       h_HT_jets_hist.Fill(HT_jets);
       h_tau_jet_max.Fill(max_tj);
