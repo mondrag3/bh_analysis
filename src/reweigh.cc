@@ -173,6 +173,9 @@ int main(int argc, char** argv)
   for (Long64_t ent=0; ent<num_events; ++ent) {
     tin->GetEntry(ent);
 
+    // use event id for event number
+    event.eid = ent;
+
     // REWEIGHTING
     calc_all_scales();
     for (auto r : rew) r->stitch();
