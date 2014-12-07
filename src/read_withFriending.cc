@@ -329,6 +329,7 @@ int main(int argc, char** argv)
        << " entries starting at " << num_events.first << endl;
   time_t last_time = time(0), cur_time;
   unsigned seconds = 0;
+  num_events.second += num_events.first;
 
   for (Long64_t ent = num_events.first; ent < num_events.second; ++ent) {
 

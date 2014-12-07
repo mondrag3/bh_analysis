@@ -5,6 +5,8 @@ bin
 # Computation output
 out
 *.root
+*.out
+*.err
 
 # Input files
 data
