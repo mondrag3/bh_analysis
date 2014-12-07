@@ -37,8 +37,10 @@ template<typename T> inline T sq(const T& x) { return x*x; }
 struct weight {
   string name;
   Float_t w;
-  weight(TTree *tree, const string& name): name(name)
-  { tree->SetBranchAddress(name.c_str(), &w); }
+  weight(TTree *tree, const string& name): name(name) {
+    if ( tree->SetBranchAddress(name.c_str(), &w) == TTree::kMissingBranch )
+      exit(1);
+  }
 
   static vector<unique_ptr<const weight>> all;
 
@@ -186,10 +188,11 @@ int main(int argc, char** argv)
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
-      ("jet-alg,j", po::value<vector<string>>(&jet_algs)->default_value(vector<string>(),"AntiKt4"),
-       "jet algorithms from SJ file") // TODO: read all if not provided
+      ("jet-alg,j", po::value<vector<string>>(&jet_algs)->
+                    default_value(vector<string>(1,"AntiKt4"),"AntiKt4"),
+       "jet algorithms from SJ file")
       ("weight,w", po::value<vector<string>>(&weights)->required(),
-       "weight from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent") // TODO: read all if not provided
+       "weight from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent")
       ("style,s", po::value<string>(&css_file)->required(),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value< range<Long64_t> >(&num_events),
@@ -256,7 +259,7 @@ int main(int argc, char** argv)
     }
   }
 
-  // Friend SpartyJet Tree with the parton level Tree
+  // Friend BlackHat tree with SpartyJet and Weight trees
   tree->AddFriend(sj_tree,"SJ");
   tree->AddFriend(wt_tree,"weights");
 

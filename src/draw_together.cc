@@ -19,7 +19,7 @@ namespace po = boost::program_options;
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 pair<Double_t,Double_t> TH1Range(const TH1* h, int minbin=1) noexcept {
-  Double_t min;
+  Double_t min = 0.;
   int i = minbin,
       n = h->GetNbinsX()+1;
   for (;i<n;++i) {
@@ -35,7 +35,7 @@ pair<Double_t,Double_t> TH1Range(const TH1* h, int minbin=1) noexcept {
   return make_pair(min,max);
 }
 pair<Double_t,Double_t> TH1PositiveRange(const TH1* h, int minbin=1) noexcept {
-  Double_t min;
+  Double_t min = 0.;
   int i = minbin,
       n = h->GetNbinsX()+1;
   for (;i<n;++i) {
@@ -75,39 +75,27 @@ int main(int argc, char *argv[])
     po::options_description all_opt("Options");
     all_opt.add_options()
       ("help,h", "produce help message")
-      ("input,i", po::value< vector<string> >(&fin),
+      ("input,i", po::value< vector<string> >(&fin)->required(),
        "label:file, input root files with histograms")
-      ("output,o", po::value<string>(&fout),
+      ("output,o", po::value<string>(&fout)->required(),
        "output pdf plots file")
       ("norm,n", po::bool_switch(&norm),
        "normalize histograms to unity")
-      ("logx", po::bool_switch(&logx),
-       "")
-      ("logy", po::bool_switch(&logy),
-       "")
+      ("logx", po::bool_switch(&logx), "")
+      ("logy", po::bool_switch(&logy), "")
       ("name-title", po::bool_switch(&name_title),
        "replace hist title with name")
     ;
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, all_opt), vm);
-    po::notify(vm);
 
-    // Options Properties ---------------------------------
     if (argc == 1 || vm.count("help")) {
       cout << all_opt << endl;
       return 0;
     }
 
-    // Necessary options ----------------------------------
-    vector<string> rec_opt;
-    rec_opt.push_back("input");
-    rec_opt.push_back("output");
-
-    for (size_t i=0, size=rec_opt.size(); i<size; ++i) {
-      if (!vm.count(rec_opt[i]))
-      { cerr << "Missing command --" << rec_opt[i] << endl; return 1; }
-    }
+    po::notify(vm);
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
