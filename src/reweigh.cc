@@ -99,7 +99,7 @@ int main(int argc, char** argv)
   else num_events = tin->GetEntries();
 
   // Set up BlackHat event
-  event.SetTree(tin, BHEvent::reweighting);
+  event.SetTree(tin, BHEvent::reweighting, old_bh);
   if (old_bh) {
 
     if      (BH_file.find("born")!=string::npos) event.SetPart('B');

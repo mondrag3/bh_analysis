@@ -25,7 +25,7 @@
 #include "SJClusterAlg.h"
 #include "finder.h"
 
-#define debug_var(var) \
+#define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 using namespace std;
@@ -73,7 +73,6 @@ public:
       );
     delete hist;
   }
-
   virtual void Fill(Double_t x) noexcept { h[alg_ptr]->Fill(x); }
 };
 */
@@ -223,9 +222,9 @@ int main(int argc, char** argv)
   TChain* wt_tree = new TChain("weights");
 
   // Add trees from all the files to the TChains
-  for (auto& f : bh_files)    tree->Add(f.c_str());
-  for (auto& f : sj_files) sj_tree->Add(f.c_str());
-  for (auto& f : wt_files) wt_tree->Add(f.c_str());
+  for (auto& f : bh_files) if (!   tree->AddFile(f.c_str(),-1) ) exit(1);
+  for (auto& f : sj_files) if (!sj_tree->AddFile(f.c_str(),-1) ) exit(1);
+  for (auto& f : wt_files) if (!wt_tree->AddFile(f.c_str(),-1) ) exit(1);
 
   // Find number of events to process
   if (num_events.second>0) {
@@ -305,22 +304,28 @@ int main(int argc, char** argv)
   // Histogram maps
   hist_alg_wt
     h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
-    h_(H_pT_excl), h_(H_pT_fine_excl),
-    h_(jet1_pT), h_(jet1_pT_fine), h_(jet1_pT_excl), h_(jet1_pT_excl_fine),
-    h_(jet1_y), h_(jet1_y_fine), h_(tau_jet1),
-    h_(jet2_pT), h_(jet2_pT_fine), h_(jet2_y), h_(jet2_y_fine), h_(tau_jet2),
-    h_(jet3_pT), h_(jet3_pT_fine), h_(jet3_y), h_(jet3_y_fine), h_(tau_jet3),
-    h_(H_j_pT), h_(H_j_pT_fine), h_(H_j_pT_excl), h_(H_j_pT_fine_excl),
-    h_(Hj_pT), h_(Hj_pT_fine), h_(Hj_pT_excl), h_(Hj_pT_fine_excl),
-    h_(H_jj_pT), h_(H_jj_pT_fine), h_(H_jj_pT_excl), h_(H_jj_pT_fine_excl),
-    h_(Hjj_pT), h_(Hjj_pT_fine), h_(Hjj_pT_excl), h_(Hjj_pT_fine_excl),
-    h_(dijet_mass), h_(dijet_mass_fine), h_(H_dijet_mass),
-    h_(deltaphi_jj), h_(deltaphi_jj_fine), h_(deltaphi_jj_excl),
-    h_(deltaphi_Hjj), h_(deltaphi_Hjj_excl), h_(deltaphi_jj_VBF),
-    h_(deltay_jj), h_(deltay_jj_fine), h_(deltay_H_jj), h_(deltay_H_jj_fine),
+
+    h_(H_pT_excl),
+
+    h_(jet1_pT), h_(jet1_pT_excl), h_(jet1_y), h_(jet1_tau),
+    h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
+    h_(jet3_pT), h_(jet3_y), h_(jet3_tau),
+
+    h_(jj_mass),
+    h_(j_j_deltaphi), h_(j_j_deltaphi_excl), h_(j_j_deltaphi_VBF),
+    h_(j_j_deltay),
+
+    h_(H_j_pT), h_(H_j_pT_excl),
+    h_(Hj_pT), h_(Hj_pT_excl),
+
+    h_(H_jj_pT), h_(H_jj_pT_excl), h_(H_jj_mass),
+    h_(H_jj_deltaphi), h_(H_jj_deltaphi_excl),
+    h_(H_jj_deltay),
+    h_(Hjj_pT), h_(Hjj_pT_excl),
+
     h_(loose), h_(tight),
-    h_(HT_jets_hist),
-    h_(tau_jet_max), h_(sum_tau_jet)
+    h_(jets_HT),
+    h_(jets_tau_max), h_(jets_tau_sum)
   ;
 
   // Reading events from the input TChain ***************************
@@ -402,16 +407,10 @@ int main(int argc, char** argv)
       if (njets==0) { // njets == 0;
 
         h_H_pT_excl     .Fill(H_pt);
-        h_H_pT_fine_excl.Fill(H_pt);
-        // 6/2 added fill for jet1_pT for 0-30 GeV bin, i.e. no jets
         h_jet1_pT       .Fill(10);
-        // 6/2 added fill for overflow bin for 0 jets in event
-        h_deltay_jj     .FillOverflow();
-        // 6/2 added fill for overflow bin for 0 jets in event
+        h_j_j_deltay    .FillOverflow();
         h_Hjj_pT        .FillOverflow();
-        //6/2 added fill for overflow bin for 0 jets in event
         h_jet2_y        .FillOverflow();
-        //6/2 added fill for overflow bin for 0 jets in event
         h_jet2_pT       .FillOverflow();
 
         h_NJet_incl_50.Fill(0);
@@ -429,15 +428,11 @@ int main(int argc, char** argv)
         const Double_t Hj_pt = (higgs + j1).Pt();
 
         h_jet1_pT     .Fill(j1_pt);
-        h_jet1_pT_fine.Fill(j1_pt);
         h_jet1_y      .Fill(j1_eta);
-        h_jet1_y_fine .Fill(j1_eta);
         h_Hj_pT       .Fill(Hj_pt);
-        h_Hj_pT_fine  .Fill(Hj_pt);
         h_H_j_pT      .Fill(H_pt);
-        h_H_j_pT_fine .Fill(H_pt);
 
-        h_tau_jet1.Fill(
+        h_jet1_tau.Fill(
           sqrt( sq(j1_pt) + sq(j1_mass) )/( 2.0*cosh(j1_eta - H_eta) )
         );
 
@@ -451,18 +446,11 @@ int main(int argc, char** argv)
         if (njets==1) { // njets == 1;
 
           h_Hj_pT_excl        .Fill(Hj_pt);
-          h_Hj_pT_fine_excl   .Fill(Hj_pt);
           h_H_j_pT_excl       .Fill(H_pt);
-          h_H_j_pT_fine_excl  .Fill(H_pt);
           h_jet1_pT_excl      .Fill(j1_pt);
-          h_jet1_pT_excl_fine .Fill(j1_pt);
-          // 6/2 added fill for j2_pT for 0-30 GeV bins, i.e. no 2nd jet
           h_jet2_pT           .Fill(10);
-          // 6/2 added fill for overflow bin for 1 jet in event
-          h_deltay_jj         .FillOverflow();
-          // 6/2 added fill for overflow bin for 1 jet in event
+          h_j_j_deltay        .FillOverflow();
           h_Hjj_pT            .FillOverflow();
-          //6/2 added fill for overflow bin for 1 jet in event
           h_jet2_y            .FillOverflow();
 
           if(j1_pt>50.) h_NJet_excl_50.Fill(1);
@@ -485,38 +473,28 @@ int main(int argc, char** argv)
           const Double_t Hjj_pt         = Hjj.Pt();
           const Double_t Hjj_mass       = Hjj.M();
           const Double_t deltay_j_j     = abs(j1_eta - j2_eta);
-          const Double_t deltay_H_jj    = abs(H_eta-jj.Rapidity());
+          const Double_t H_jj_deltay    = abs(H_eta-jj.Rapidity());
 
-          h_deltaphi_jj     .Fill(deltaPhi_j_j);
-          h_deltaphi_jj_fine.Fill(deltaPhi_j_j);
-          h_deltaphi_Hjj    .Fill(deltaPhi_H_jj);
+          h_j_j_deltaphi    .Fill(deltaPhi_j_j);
+          h_H_jj_deltaphi   .Fill(deltaPhi_H_jj);
           h_Hjj_pT          .Fill(Hjj_pt);
-          h_Hjj_pT_fine     .Fill(Hjj_pt);
           h_H_jj_pT         .Fill(H_pt);
-          h_H_jj_pT_fine    .Fill(H_pt);
           h_jet2_pT         .Fill(j2_pt);
-          h_jet2_pT_fine    .Fill(j2_pt);
           h_jet2_y          .Fill(abs(j2_eta));
-          h_jet2_y_fine     .Fill(abs(j2_eta));
-          h_dijet_mass      .Fill(jj_mass);
-          h_dijet_mass_fine .Fill(jj_mass);
-          h_H_dijet_mass    .Fill(Hjj_mass);
-          h_deltay_jj       .Fill(deltay_j_j);
-          h_deltay_jj_fine  .Fill(deltay_j_j);
-          h_deltay_H_jj     .Fill(deltay_H_jj);
-          h_deltay_H_jj_fine.Fill(deltay_H_jj);
+          h_jj_mass         .Fill(jj_mass);
+          h_H_jj_mass       .Fill(Hjj_mass);
+          h_j_j_deltay      .Fill(deltay_j_j);
+          h_H_jj_deltay     .Fill(H_jj_deltay);
 
           if (deltay_j_j>2.8) {
             if (jj_mass>400) {
-              // 6/13 realized that delta-phi cut should be between Higgs and dijet system
-              h_deltaphi_jj_VBF.Fill(deltaPhi_H_jj);
-              // 6/2 added loose and tight histograms to tally cross section as cross-checks
+              h_j_j_deltaphi_VBF.Fill(deltaPhi_H_jj);
               h_loose.Fill(1);
               if (deltaPhi_H_jj>2.6) h_tight.Fill(1);
             }
           }
 
-          h_tau_jet2.Fill(
+          h_jet2_tau.Fill(
             sqrt( sq(j2_pt) + sq(j2_mass) )/( 2.0*cosh(j2_eta - H_eta) )
           );
 
@@ -524,14 +502,11 @@ int main(int argc, char** argv)
 
           if (njets==2) { // njets == 2;
 
-            h_deltaphi_jj_excl  .Fill(deltaPhi_j_j);
-            h_deltaphi_Hjj_excl .Fill(deltaPhi_H_jj);
-            h_Hjj_pT_excl       .Fill(Hjj_pt);
-            h_Hjj_pT_fine_excl  .Fill(Hjj_pt);
-            h_H_jj_pT_excl      .Fill(H_pt);
-            h_H_jj_pT_fine_excl .Fill(H_pt);
-            // 6/2 added fill for j3_pT 0-30 GeV, i.e. no jet3
-            h_jet3_pT           .Fill(10);
+            h_j_j_deltaphi_excl  .Fill(deltaPhi_j_j);
+            h_H_jj_deltaphi_excl .Fill(deltaPhi_H_jj);
+            h_Hjj_pT_excl        .Fill(Hjj_pt);
+            h_H_jj_pT_excl       .Fill(H_pt);
+            // h_jet3_pT            .Fill(10);
 
             if (j2_pt>50.) h_NJet_excl_50.Fill(2);
 
@@ -544,11 +519,9 @@ int main(int argc, char** argv)
             const Double_t j3_eta  = j3.Rapidity();
 
             h_jet3_pT     .Fill(j3_pt);
-            h_jet3_pT_fine.Fill(j3_pt);
             h_jet3_y      .Fill(j3_eta);
-            h_jet3_y_fine .Fill(j3_eta);
 
-            h_tau_jet3.Fill(
+            h_jet3_tau.Fill(
               sqrt( sq(j3_pt) + sq(j3_mass) )/( 2.*cosh(j3_eta - H_eta) )
             );
 
@@ -566,7 +539,7 @@ int main(int argc, char** argv)
 
       } // END njets > 0;
 
-      Double_t HT_jets = 0;
+      Double_t jets_HT = 0;
 
       static const Double_t tau_jet_cut=8;
       Double_t max_tj=0;
@@ -579,7 +552,7 @@ int main(int argc, char** argv)
         const Double_t jet_mass = jet.M();
         const Double_t jet_eta  = jet.Rapidity();
 
-        HT_jets += jet_pt;
+        jets_HT += jet_pt;
 
         Double_t tauJet =
           sqrt( sq(jet_pt) + sq(jet_mass) )/( 2.*cosh(jet_eta - H_eta) );
@@ -590,15 +563,15 @@ int main(int argc, char** argv)
         }
 
       }
-      h_HT_jets_hist.Fill(HT_jets);
-      h_tau_jet_max.Fill(max_tj);
-      h_sum_tau_jet.Fill(sum_tj);
+      h_jets_HT.Fill(jets_HT);
+      h_jets_tau_max.Fill(max_tj);
+      h_jets_tau_sum.Fill(sum_tj);
 
     } // END Loop over SpartyJet clustering algorithms
 
   } // END of event loop
 
-  cout << setw(10) << num_events.second-1 << setw(9) << seconds <<'s' << endl;
+  cout << setw(10) << num_events.second << setw(9) << seconds <<'s' << endl;
 
   cout << "Successfully processed events: " << numOK << endl;
 

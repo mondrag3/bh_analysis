@@ -1,0 +1,88 @@
+.* {
+  Class: TH1F;
+  Bins: 100 -500 500;
+}
+
+pid {
+  Bins: 40 -10 30;
+}
+
+xs {
+  Bins: 1 0 1;
+}
+
+H_mass {
+  Bins: 25 120 130;
+}
+
+H_pt {
+  Bins: 25 0 300;
+}
+
+H_pT_.* {
+  Bins: 25 0 100;
+}
+
+.*_y {
+  Bins: 25 0 5;
+}
+
+NJet_.* {
+  Bins: 4 -0.5 3.5;
+}
+
+jet\d_pT(?:_.*)? {
+  Bins: 25 0 300;
+}
+
+jet\d_tau {
+  Bins: 25 0 150;
+}
+
+jj_mass {
+  Bins: 25 0 1000;
+}
+
+.*_deltaphi(?:_.*)? {
+  Bins: 25 -6.28319 6.28319;
+}
+
+H_.*_pT(?:_.*)? {
+  Bins: 25 0 200;
+}
+
+Hj_pT(?:_.*)? {
+  Bins: 25 0 150;
+}
+
+Hjj_pT(?:_.*)? {
+  Bins: 25 0 10;
+}
+
+.*_deltay(?:_.*)? {
+  Bins: 25 0 4;
+}
+
+H_.*_mass {
+  Bins: 25 100 1000;
+}
+
+loose {
+  Bins: 1 0.5 1.5;
+}
+
+tight {
+  Bins: 1 0.5 1.5;
+}
+
+jets_HT {
+  Bins: 25 0 200;
+}
+
+jets_tau_max {
+  Bins: 25 0 100;
+}
+
+jets_tau_sum {
+  Bins: 25 0 100;
+}
