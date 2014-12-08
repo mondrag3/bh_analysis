@@ -4,7 +4,7 @@ dir=data
 
 part=$1
 
-./bin/read_withFriending \
+./bin/gosam_2j \
   --bh=$dir/bh_"$part"_10k.root \
   --sj=$dir/sj_"$part"_10k.root \
   --wt=$dir/wt_"$part"_10k.root \
