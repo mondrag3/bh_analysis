@@ -15,6 +15,7 @@
 #include <TFile.h>
 #include <TTree.h>
 #include <TChain.h>
+#include <TDirectory.h>
 #include <TH1.h>
 #include <TLorentzVector.h>
 
@@ -32,6 +33,14 @@ using namespace std;
 namespace po = boost::program_options;
 
 template<typename T> inline T sq(const T& x) { return x*x; }
+
+template <typename T>
+struct pair_hash {
+  size_t operator()(const T &x ) const {
+    return hash<typename T::first_type >()(x.first ) ^
+           hash<typename T::second_type>()(x.second);
+  }
+};
 
 // Weights collector ************************************************
 struct weight {
@@ -82,34 +91,35 @@ class hist_wt: public hist {
 public:
   hist_wt(const string& name) {
     TH1* hist = css->mkhist(name);
-    for (auto& wt : weight::all)
-      h[wt.get()] = static_cast<TH1*>(
-        hist->Clone( (wt->name+"__"+name).c_str() )
-      );
+    for (auto& wt : weight::all) {
+      const weight *w = wt.get();
+      dirs[w]->cd();
+      h[w] = static_cast<TH1*>( hist->Clone() );
+      // hist->Clone( (w->name+"__"+name).c_str() )
+    }
     delete hist;
   }
 
   virtual void Fill(Double_t x) noexcept {
     for (auto& wt : weight::all) h[wt.get()]->Fill(x,wt->w);
   }
+
+  static unordered_map<const weight*,TDirectory*> dirs;
 };
+unordered_map<const weight*,TDirectory*> hist_wt::dirs;
 
 class hist_alg_wt: public hist {
   typedef pair<const SJClusterAlg*,const weight*> key;
-  struct key_hash {
-    size_t operator()(const key& k) const {
-      return hash<const SJClusterAlg*>()(k.first) ^ hash<const weight*>()(k.second);
-    }
-  };
-  unordered_map<key,TH1*,key_hash> h;
+  unordered_map<key,TH1*,pair_hash<key>> h;
 public:
   hist_alg_wt(const string& name) {
     TH1* hist = css->mkhist(name);
     for (auto& alg : SJClusterAlg::all) {
       for (auto& wt : weight::all) {
-        h.emplace( make_pair(alg.get(),wt.get()), static_cast<TH1*>(
-          hist->Clone( (alg->name+'_'+wt->name+"__"+name).c_str() )
-        ) );
+        const auto k = make_pair(alg.get(),wt.get());
+        dirs[k]->cd();
+        h.emplace(k, static_cast<TH1*>( hist->Clone() ) );
+        // hist->Clone( (alg->name+'_'+wt->name+"__"+name).c_str() )
       }
     }
     delete hist;
@@ -131,16 +141,11 @@ public:
       _h->SetBinContent(obin,_h->GetBinContent(obin)+wt->w);
     }
   }
-};
 
-namespace std {
-  template <>
-  struct hash<pair<const SJClusterAlg*,const weight*>>{
-    size_t operator()(const pair<const SJClusterAlg*,const weight*> &x ) const {
-      return hash<const SJClusterAlg*>()(x.first) ^ hash<const weight*>()(x.second);
-    }
-  };
-}
+  static unordered_map<key,TDirectory*,pair_hash<key>> dirs;
+};
+unordered_map<hist_alg_wt::key, TDirectory*,
+              pair_hash<hist_alg_wt::key>> hist_alg_wt::dirs;
 
 // istream range operator *******************************************
 template<typename T>
@@ -291,6 +296,21 @@ int main(int argc, char** argv)
   TFile* fout = new TFile(output_file.c_str(),"recreate");
   if (fout->IsZombie()) exit(1);
   else cout << "Output file: " << fout->GetName() << endl << endl;
+
+  // Make directories ***********************************************
+  for (auto& w : weight::all) {
+    hist_wt::dirs[w.get()] = fout->mkdir(w->name.c_str());
+  }
+
+  for (auto& j : SJClusterAlg::all) {
+    const auto dir = fout->mkdir(j->name.c_str());
+    for (auto& w : weight::all) {
+      hist_alg_wt::dirs[make_pair(j.get(),w.get())]
+        = dir->mkdir(w->name.c_str());
+    }
+  }
+
+  fout->cd();
 
   // Book histograms ************************************************
   TH1* h_pid = hist::css->mkhist("pid");
