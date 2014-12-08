@@ -17,7 +17,6 @@ public:
     using namespace std;
 
     cout << setw(10) << ent << " | ";
-
     if (hours) {
       cout << setw(5) << hours   << ':'
       << setw(2) << minutes << ':'
@@ -28,7 +27,6 @@ public:
     } else {
       cout << setw(2) << seconds <<'s';
     }
-    cout << endl;
   }
   template<typename T>
   void operator()(const T& ent) {
