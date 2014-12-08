@@ -1,0 +1,11 @@
+# Relevant places on MSU tier3
+=================================================
+
+# Brian's Condor submission scripts
+/home/brianmartin/condorForJoey
+
+# Matt's SJ ntuples for gosam Higgs+2jets
+/msu/data/t3work4/Sparty/Higgs
+
+# gosam Higgs+2jets ntuples
+/msu/data/t3work4/gosam/higgs_jets_ntuples/R=0.4
