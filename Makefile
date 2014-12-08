@@ -71,7 +71,7 @@ lib/test_rew_calc.o: src/rew_calc.h src/BHEvent.h
 lib/reweigh.o      : src/rew_calc.h src/BHEvent.h
 lib/hist_weights.o : src/hist_wrap.h
 lib/select_old_weight_hists.o: src/propmap.h
-lib/read_withFriending.o: src/BHEvent.h src/SJClusterAlg.h
+lib/read_withFriending.o: src/BHEvent.h src/SJClusterAlg.h src/finder.h src/timed_counter.h
 
 # EXE dependencies
 bin/test_rew_calc  : lib/rew_calc.o lib/BHEvent.o

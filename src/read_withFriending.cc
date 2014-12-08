@@ -1,5 +1,4 @@
 #include <cmath>
-#include <ctime>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -24,6 +23,7 @@
 #include "BHEvent.h"
 #include "SJClusterAlg.h"
 #include "finder.h"
+#include "timed_counter.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -162,7 +162,7 @@ istream& operator>> (istream& is, range<T>& r) {
   return is;
 }
 
-// INFO: Cannot make istream operator for std::pair work with boost::po
+// NOTE: Cannot make istream operator for std::pair work with boost::po
 
 // ******************************************************************
 int main(int argc, char** argv)
@@ -301,7 +301,7 @@ int main(int argc, char** argv)
 
   #define h_(name) h_##name(#name)
 
-  // Histogram maps
+  // Book Histograms
   hist_alg_wt
     h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
 
@@ -324,29 +324,19 @@ int main(int argc, char** argv)
     h_(Hjj_pT), h_(Hjj_pT_excl),
 
     h_(loose), h_(tight),
-    h_(jets_HT),
-    h_(jets_tau_max), h_(jets_tau_sum)
+    h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
   ;
 
   // Reading events from the input TChain ***************************
   Long64_t numOK = 0;
-  cout << "Preparing to read " << num_events.second
-       << " entries starting at " << num_events.first << endl;
-  time_t last_time = time(0), cur_time;
-  unsigned seconds = 0;
+  cout << "Reading " << num_events.second << " entries";
+  if (num_events.first>0) cout << " starting at " << num_events.first << endl;
+  else cout << endl;
   num_events.second += num_events.first;
+  timed_counter counter;
 
   for (Long64_t ent = num_events.first; ent < num_events.second; ++ent) {
-
-    // timed counter
-    if ( difftime( (cur_time=time(0)), last_time ) > 1 ) {
-      cout << setw(10) << ent << setw(9) << seconds << 's';
-      cout.flush();
-      for (char i=0;i<20;i++) cout << '\b';
-      last_time = cur_time;
-      ++seconds;
-    }
-
+    counter(ent);
     tree->GetEntry(ent);
 
     if (event.nparticle>BHMAXNP) {
@@ -408,10 +398,11 @@ int main(int argc, char** argv)
 
         h_H_pT_excl     .Fill(H_pt);
         h_jet1_pT       .Fill(10);
-        h_j_j_deltay    .FillOverflow();
-        h_Hjj_pT        .FillOverflow();
-        h_jet2_y        .FillOverflow();
-        h_jet2_pT       .FillOverflow();
+        // TODO: Why did Brian fill these overflows?
+        // h_j_j_deltay    .FillOverflow();
+        // h_Hjj_pT        .FillOverflow();
+        // h_jet2_y        .FillOverflow();
+        // h_jet2_pT       .FillOverflow();
 
         h_NJet_incl_50.Fill(0);
         h_NJet_excl_50.Fill(0);
@@ -449,9 +440,9 @@ int main(int argc, char** argv)
           h_H_j_pT_excl       .Fill(H_pt);
           h_jet1_pT_excl      .Fill(j1_pt);
           h_jet2_pT           .Fill(10);
-          h_j_j_deltay        .FillOverflow();
-          h_Hjj_pT            .FillOverflow();
-          h_jet2_y            .FillOverflow();
+          // h_j_j_deltay        .FillOverflow();
+          // h_Hjj_pT            .FillOverflow();
+          // h_jet2_y            .FillOverflow();
 
           if(j1_pt>50.) h_NJet_excl_50.Fill(1);
 
@@ -571,8 +562,8 @@ int main(int argc, char** argv)
 
   } // END of event loop
 
-  cout << setw(10) << num_events.second << setw(9) << seconds <<'s' << endl;
-
+  counter.prt(num_events.second);
+  cout << endl;
   cout << "Successfully processed events: " << numOK << endl;
 
   // Close files
