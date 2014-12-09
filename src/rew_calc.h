@@ -75,26 +75,26 @@ class reweighter;
 class fac_calc: public calc_base {
 protected:
   const mu_fcn* mu_f;
-  bool unc;
+  bool pdf_unc;
   bool defaultPDF;
 
-  mutable double f[2][5], m[9], lf, si;
+  mutable double f[3][2][5], m[9], lf, si[3];
 
-  fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF);
+  fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF);
   virtual void calc() const noexcept;
 
-  Double_t quark_sum(Double_t x, Double_t mu_fac) const;
+  // Double_t quark_sum(Double_t x, Double_t mu_fac) const;
 
 public:
   virtual ~fac_calc();
 
-friend
-const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF);
+friend const fac_calc* mk_fac_calc(const mu_fcn*, bool, bool);
 
 friend class reweighter;
 };
 
-const fac_calc* mk_fac_calc(const mu_fcn* mu_f, bool unc=false, bool defaultPDF=false);
+const fac_calc* mk_fac_calc(
+  const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false);
 
 //-----------------------------------------------
 // Renormalization ------------------------------
@@ -113,8 +113,7 @@ protected:
 public:
   virtual ~ren_calc();
 
-friend
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF);
+friend const ren_calc* mk_ren_calc(const mu_fcn*, bool);
 
 friend class reweighter;
 };
@@ -129,7 +128,7 @@ class reweighter {
   const fac_calc *fac;
   const ren_calc *ren;
 
-  mutable double s;
+  mutable double s[3];
 
   mutable Float_t weight[3];
 

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <valarray>
 #include <cmath>
 
 #include <TTree.h>
@@ -14,6 +15,11 @@
 
 using namespace std;
 
+const vector<int> quarks {
+  1, 2, 3, 4, 5,
+  -1,-2,-3,-4,-5,
+};
+
 template<typename T> inline T sq(T x) { return x*x; }
 
 // PDF variables
@@ -21,6 +27,7 @@ string pdfname("def");
 const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
 LHAPDF::PDF* pdf; // central PDF
+size_t npdfs;
 
 // PDF garbage collector
 struct PDFgc {
@@ -38,6 +45,7 @@ void usePDFset(const std::string& setname) {
   pdfname = pdfset->name();
   pdfs = pdfset->mkPDFs();
   pdf = pdfs[0];
+  npdfs = pdfs.size();
 }
 
 //-----------------------------------------------
@@ -86,7 +94,6 @@ double mu_ren_default::mu() const noexcept {
 
 std::vector<std::unique_ptr<const calc_base>> calc_base::all;
 
-// TODO: Use multiple threads here
 void calc_all_scales() noexcept {
   for (auto& c : calc_base::all ) c->calc();
 }
@@ -98,8 +105,8 @@ mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF) {
   return new fac_calc(mu_f,unc,defaultPDF);
 }
 
-fac_calc::fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF)
-: calc_base(), mu_f(mu_f), unc(unc), defaultPDF(defaultPDF)
+fac_calc::fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF)
+: calc_base(), mu_f(mu_f), pdf_unc(pdf_unc), defaultPDF(defaultPDF)
 {
   all.push_back( unique_ptr<const calc_base>(this) );
 }
@@ -118,9 +125,8 @@ mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF) {
 }
 
 ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF)
-: calc_base(), mu_r(mu_r), defaultPDF(defaultPDF)
+: calc_base(), mu_r(mu_r), defaultPDF(defaultPDF), ar(1.)
 {
-  if (defaultPDF) ar = 1;
   all.push_back( unique_ptr<const calc_base>(this) );
 }
 
@@ -143,13 +149,20 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   ss <<  "Fac" << fac->mu_f->str
      << "_Ren" << ren->mu_r->str
      << "_PDF" << pdfname;
-  if (fac->unc) ss << "_unc";
-  else ss << "_cent";
-  string name( ss.str() );
 
+  string name( ss.str()+"_cent" );
   cout << "Creating branch: " << name << endl;
-
   tree->Branch(name.c_str(), &weight[0], (name+"/F").c_str());
+
+  if (fac->pdf_unc) {
+    name = ss.str()+"_down";
+    cout << "Creating branch: " << name << endl;
+    tree->Branch(name.c_str(), &weight[1], (name+"/F").c_str());
+
+    name = ss.str()+"_up";
+    cout << "Creating branch: " << name << endl;
+    tree->Branch(name.c_str(), &weight[2], (name+"/F").c_str());
+  }
 }
 
 reweighter::~reweighter() { }
@@ -165,6 +178,37 @@ reweighter::~reweighter() { }
 // Factorization
 //-----------------------------------------------
 
+// Get PDF lower and upper bound
+valarray<double> xfxQ_unc(int id, double x, double q) {
+  static vector<double> xfx(npdfs);
+  for (size_t j=0;j<npdfs;++j) xfx[j] = pdfs[j]->xfxQ(id, x, q);
+
+  static LHAPDF::PDFUncertainty xErr;
+  pdfset->uncertainty(xErr, xfx); // no 3rd arg => use default 1 sigma
+
+  return {
+    xErr.central - xErr.errminus, // down
+    xErr.central + xErr.errplus   // up
+  };
+}
+
+inline double quark_sum(double x, double mu_fac) {
+  double f = 0.;
+  for (int q : quarks) f += pdf->xfxQ(q, x, mu_fac);
+  return f;
+}
+
+valarray<double> quark_sum_unc(double x, double mu_fac) {
+  valarray<double> f(0.,2);
+  for (int q : quarks) f += xfxQ_unc(q, x, mu_fac);
+  return f;
+}
+
+void unfold(const valarray<double>& a, double& x1, double& x2) {
+  x1 = a[0];
+  x2 = a[1];
+}
+
 void fac_calc::calc() const noexcept {
   // There is only one global event variable
   // so these references always points to the right place
@@ -176,9 +220,14 @@ void fac_calc::calc() const noexcept {
   // Born & Real
   if (defaultPDF) m[0] = event.weight;
   else {
-    for (short i=0;i<2;++i) {
-      f[i][0] = pdf->xfxQ(event.id[i], event.x[i], mu)/event.x[i];
-    }
+    for (short i=0;i<2;++i)
+      f[0][i][0] = pdf->xfxQ(event.id[i], event.x[i], mu)/event.x[i];
+
+    // PDF uncertainty
+    if (pdf_unc) for (short i=0;i<2;++i)
+      unfold( xfxQ_unc(event.id[i], event.x[i], mu)/event.x[i],
+              f[1][i][0], f[2][i][0] );
+
     m[0] = event.me_wgt2;
   }
 
@@ -193,44 +242,44 @@ void fac_calc::calc() const noexcept {
     // Calculate terms in Eq. (44)
     static Double_t x, xp;
     static Int_t id;
-    double si_[2] = { 0., 0. };
+    double si_[3][2] = { 0., 0., 0., 0., 0., 0. };
     for (short i=0;i<2;++i) {
       id = event.id[i];
-      x  = event.x  [i];
-      xp = event.xp [i];
+      x  = event.x [i];
+      xp = event.xp[i];
 
-      f[i][1] = ( id==21 // Eq. (46)
-              ? quark_sum(    x, mu)/x
-              : pdf->xfxQ(id, x, mu)/x
+      f[0][i][1] = ( id==21 // Eq. (46)
+                   ? quark_sum(    x, mu)/x
+                   : pdf->xfxQ(id, x, mu)/x
       );
-      f[i][2] = ( id==21 // Eq. (47)
-              ? quark_sum(    x/xp, mu)/x
-              : pdf->xfxQ(id, x/xp, mu)/x
+      f[0][i][2] = ( id==21 // Eq. (47)
+                   ? quark_sum(    x/xp, mu)/x
+                   : pdf->xfxQ(id, x/xp, mu)/x
       );
-      f[i][3] = pdf->xfxQ(21, x,    mu)/x; // Eq. (48)
-      f[i][4] = pdf->xfxQ(21, x/xp, mu)/x; // Eq. (49)
+      f[0][i][3] = pdf->xfxQ(21, x,    mu)/x; // Eq. (48)
+      f[0][i][4] = pdf->xfxQ(21, x/xp, mu)/x; // Eq. (49)
+
+      if (pdf_unc) { // PDF uncertainty
+        unfold( id==21 ? quark_sum_unc(x,    mu)/x : xfxQ_unc(id, x,    mu)/x,
+                f[1][i][1], f[2][i][1]
+        ); // Eq. (46)
+        unfold( id==21 ? quark_sum_unc(x/xp, mu)/x : xfxQ_unc(id, x/xp, mu)/x,
+                f[1][i][2], f[2][i][2]
+        ); // Eq. (47)
+        unfold( xfxQ_unc(21, x,    mu)/x, f[1][i][3], f[2][i][3] ); // Eq. (48)
+        unfold( xfxQ_unc(21, x/xp, mu)/x, f[1][i][4], f[2][i][4] ); // Eq. (49)
+      }
     }
-    for (short i=0;i<2;++i)
-      for (short j=1;j<5;++j)
-        si_[i] += f[i][j]*m[j+(i ? 4 : 0)]; // si_[0] = f_1^(j)*ω_j
-                                            // si_[1] = f_2^(j)*ω_j+4
-
-    si = f[1][0]*si_[0] + f[0][0]*si_[1]; // f_1^(j)*ω_j*f_2 + f_1*f_2^(j)*ω_j+4
+    for (short k=0;k<(pdf_unc?3:1);++k) {
+      for (short i=0;i<2;++i)
+        for (short j=1;j<5;++j)
+          si_[k][i] += f[k][i][j]*m[j+(i ? 4 : 0)]; // si_[k][0] = f_1^(j)*ω_j
+                                                    // si_[k][1] = f_2^(j)*ω_j+4
+      // f_1^(j)*ω_j*f_2 + f_1*f_2^(j)*ω_j+4
+      si[k] = f[k][1][0]*si_[k][0] + f[k][0][0]*si_[k][1];
+    }
 
   }
-}
-
-Double_t fac_calc::quark_sum(Double_t x, Double_t mu_fac) const {
-  static const int nquarks = 10;
-  static Int_t q[nquarks] = {
-    1, 2, 3, 4, 5,
-   -1,-2,-3,-4,-5,
-  };
-
-  Double_t f = 0.;
-  for (int i=0;i<nquarks;++i) f += pdf->xfxQ(q[i], x, mu_fac);
-
-  return f;
 }
 
 //-----------------------------------------------
@@ -266,16 +315,16 @@ void reweighter::stitch() const noexcept {
   static const char& part = event.part[0];
   static Double_t* const& usr_wgts = event.usr_wgts;
 
-  s = fac->m[0]; // m0
+  s[0] = fac->m[0]; // m0
 
   if (part=='V' || part=='I')
-    s += (ren->lr)*usr_wgts[0] + 0.5*sq(ren->lr)*usr_wgts[1]; // m0
+    s[0] += (ren->lr)*usr_wgts[0] + 0.5*sq(ren->lr)*usr_wgts[1]; // m0
 
-  for (short i=0;i<2;++i) s *= fac->f[i][0]; // m0 becomes s
+  for (short i=0;i<2;++i) s[0] *= fac->f[0][i][0]; // m0 becomes s
 
-  if (part=='I') s += fac->si;
+  if (part=='I') s[0] += fac->si[0];
 
-  weight[0] = s * ren->ar;
+  weight[0] = s[0] * ren->ar;
 
   if (!isnormal(weight[0])) {
     cerr << "\033[31mEvent " << event.eid << "\033[0m: "
