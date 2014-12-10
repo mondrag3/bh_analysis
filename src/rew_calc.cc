@@ -15,18 +15,18 @@
 
 using namespace std;
 
-const vector<int> quarks {
-  1, 2, 3, 4, 5,
+constexpr array<int,10> quarks {
+   1, 2, 3, 4, 5,
   -1,-2,-3,-4,-5,
 };
 
-template<typename T> inline T sq(T x) { return x*x; }
+template<typename T> inline T sq(T x) noexcept { return x*x; }
 
 // PDF variables
 string pdfname("def");
 const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
-LHAPDF::PDF* pdf; // central PDF
+const LHAPDF::PDF* pdf; // central PDF
 size_t npdfs;
 
 // PDF garbage collector
@@ -52,9 +52,9 @@ void usePDFset(const std::string& setname) {
 // Function classes to get scales values
 //-----------------------------------------------
 
-mu_fcn::mu_fcn(const string& str): str(str) { }
+mu_fcn::mu_fcn(const string& str) noexcept : str(str) { }
 
-mu_const::mu_const(double mu)
+mu_const::mu_const(double mu) noexcept
 : mu_fcn( [&mu] () { // lambda
     stringstream ss;
     ss << mu << "GeV";
@@ -66,7 +66,7 @@ double mu_const::mu() const noexcept {
   return _mu;
 }
 
-mu_fHt::mu_fHt(double fHt)
+mu_fHt::mu_fHt(double fHt) noexcept
 : mu_fcn( [&fHt] () { // lambda
     stringstream ss;
     ss << fHt << "Ht";
@@ -78,12 +78,12 @@ double mu_fHt::mu() const noexcept {
   return fHt*event.Ht();
 }
 
-mu_fac_default::mu_fac_default(): mu_fcn("def") { }
+mu_fac_default::mu_fac_default() noexcept : mu_fcn("def") { }
 double mu_fac_default::mu() const noexcept {
   return event.fac_scale;
 }
 
-mu_ren_default::mu_ren_default(): mu_fcn("def") { }
+mu_ren_default::mu_ren_default() noexcept : mu_fcn("def") { }
 double mu_ren_default::mu() const noexcept {
   return event.ren_scale;
 }
@@ -101,11 +101,11 @@ void calc_all_scales() noexcept {
 // Factorization --------------------------------
 
 const fac_calc*
-mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF) {
+mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF) noexcept {
   return new fac_calc(mu_f,unc,defaultPDF);
 }
 
-fac_calc::fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF)
+fac_calc::fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept
 : calc_base(), mu_f(mu_f), pdf_unc(pdf_unc), defaultPDF(defaultPDF)
 {
   all.push_back( unique_ptr<const calc_base>(this) );
@@ -120,11 +120,11 @@ fac_calc::~fac_calc() {
 // Renormalization ------------------------------
 
 const ren_calc*
-mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF) {
+mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept {
   return new ren_calc(mu_r,defaultPDF);
 }
 
-ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF)
+ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept
 : calc_base(), mu_r(mu_r), defaultPDF(defaultPDF), ar(1.)
 {
   all.push_back( unique_ptr<const calc_base>(this) );
@@ -178,8 +178,14 @@ reweighter::~reweighter() { }
 // Factorization
 //-----------------------------------------------
 
+inline double quark_sum(double x, double mu_fac) noexcept {
+  double f = 0.;
+  for (int q : quarks) f += pdf->xfxQ(q, x, mu_fac);
+  return f;
+}
+
 // Get PDF lower and upper bound
-valarray<double> xfxQ_unc(int id, double x, double q) {
+valarray<double> xfxQ_unc(int id, double x, double q) noexcept {
   static vector<double> xfx(npdfs);
   for (size_t j=0;j<npdfs;++j) xfx[j] = pdfs[j]->xfxQ(id, x, q);
 
@@ -192,19 +198,13 @@ valarray<double> xfxQ_unc(int id, double x, double q) {
   };
 }
 
-inline double quark_sum(double x, double mu_fac) {
-  double f = 0.;
-  for (int q : quarks) f += pdf->xfxQ(q, x, mu_fac);
-  return f;
-}
-
-valarray<double> quark_sum_unc(double x, double mu_fac) {
+valarray<double> quark_sum_unc(double x, double mu_fac) noexcept {
   valarray<double> f(0.,2);
   for (int q : quarks) f += xfxQ_unc(q, x, mu_fac);
   return f;
 }
 
-void unfold(const valarray<double>& a, double& x1, double& x2) {
+void unfold(const valarray<double>& a, double& x1, double& x2) noexcept {
   x1 = a[0];
   x2 = a[1];
 }
@@ -240,8 +240,8 @@ void fac_calc::calc() const noexcept {
       m[i] = usr_wgts[i+1] + usr_wgts[i+9]*lf;
 
     // Calculate terms in Eq. (44)
-    static Double_t x, xp;
     static Int_t id;
+    static Double_t x, xp;
     double si_[3][2] = { 0., 0., 0., 0., 0., 0. };
     for (short i=0;i<2;++i) {
       id = event.id[i];
@@ -270,7 +270,7 @@ void fac_calc::calc() const noexcept {
         unfold( xfxQ_unc(21, x/xp, mu)/x, f[1][i][4], f[2][i][4] ); // Eq. (49)
       }
     }
-    for (short k=0;k<(pdf_unc?3:1);++k) {
+    for (short k=0,nk=(pdf_unc?3:1);k<nk;++k) {
       for (short i=0;i<2;++i)
         for (short j=1;j<5;++j)
           si_[k][i] += f[k][i][j]*m[j+(i ? 4 : 0)]; // si_[k][0] = f_1^(j)*ω_j
@@ -293,15 +293,17 @@ void ren_calc::calc() const noexcept {
   static const Double_t& alphas  = event.alphas;
   static const Char_t& n = event.alphas_power;
   static const Double_t& ren_scale = event.ren_scale;
+  static Double_t* const& usr_wgts = event.usr_wgts;
 
   const double mu = mu_r->mu();
 
   // Calculate α_s change from renormalization
   if (!defaultPDF) ar = pow( pdf->alphasQ(mu) / alphas, n );
 
-  // Calculate lr, same as l in Eq (30)
-  if (part=='V' || part=='I')
-    lr = 2.*log( mu / ren_scale );
+  if (part=='V' || part=='I') {
+    lr = 2.*log( mu / ren_scale ); // Calculate lr, same as l in Eq (30)
+    m0 = lr*usr_wgts[0] + 0.5*lr*lr*usr_wgts[1];
+  }
 
 }
 
@@ -312,28 +314,23 @@ void ren_calc::calc() const noexcept {
 void reweighter::stitch() const noexcept {
   // There is only one global event variable
   // so these references always points to the right place
-  static const char& part = event.part[0];
-  static Double_t* const& usr_wgts = event.usr_wgts;
+  const char part = event.part[0];
 
-  s[0] = fac->m[0]; // m0
+  for (short k=0,nk=(fac->pdf_unc?3:1);k<nk;++k) {
+    s[k] = fac->m[0]; // m0
 
-  if (part=='V' || part=='I')
-    s[0] += (ren->lr)*usr_wgts[0] + 0.5*sq(ren->lr)*usr_wgts[1]; // m0
+    if (part=='V' || part=='I') s[k] += ren->m0; // m0
 
-  for (short i=0;i<2;++i) s[0] *= fac->f[0][i][0]; // m0 becomes s
+    for (short i=0;i<2;++i) s[k] *= fac->f[k][i][0]; // m0 becomes s
 
-  if (part=='I') s[0] += fac->si[0];
+    if (part=='I') s[k] += fac->si[k];
 
-  weight[0] = s[0] * ren->ar;
+    weight[k] = s[k] * ren->ar;
 
-  if (!isnormal(weight[0])) {
-    cerr << "\033[31mEvent " << event.eid << "\033[0m: "
-         << "weight=" << weight[0] << endl;
-    weight[0] = 0.;
-  } /*else {
-    cout << "\033[32mEvent " << event.eid << "\033[0m: "
-         << "weight=" << weight[0];
+    if (!isfinite(weight[k]))  {
+      cerr << "\033[31mEvent " << event.eid << "\033[0m: "
+           << "weight=" << weight[k] << endl;
+      weight[k] = 0.;
+    }
   }
-  cout << " fac=" << static_cast<const mu_fHt*>(fac->mu_f)->fHt
-       << " ren=" << static_cast<const mu_fHt*>(ren->mu_r)->fHt << endl;*/
 }

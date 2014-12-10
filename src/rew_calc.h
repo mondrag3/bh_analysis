@@ -18,33 +18,33 @@ void usePDFset(const std::string& setname);
 
 struct mu_fcn {
   std::string str;
-  mu_fcn(const std::string& str);
+  mu_fcn(const std::string& str) noexcept;
   virtual double mu() const noexcept =0;
   virtual ~mu_fcn() { }
 };
 
 struct mu_const: public mu_fcn {
   double _mu;
-  mu_const(double mu);
+  mu_const(double mu) noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_const() { }
 };
 
 struct mu_fHt: public mu_fcn {
   double fHt;
-  mu_fHt(double fHt);
+  mu_fHt(double fHt) noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fHt() { }
 };
 
 struct mu_fac_default: public mu_fcn {
-  mu_fac_default();
+  mu_fac_default() noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fac_default() { }
 };
 
 struct mu_ren_default: public mu_fcn {
-  mu_ren_default();
+  mu_ren_default() noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_ren_default() { }
 };
@@ -80,7 +80,7 @@ protected:
 
   mutable double f[3][2][5], m[9], lf, si[3];
 
-  fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF);
+  fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept;
   virtual void calc() const noexcept;
 
   // Double_t quark_sum(Double_t x, Double_t mu_fac) const;
@@ -88,13 +88,13 @@ protected:
 public:
   virtual ~fac_calc();
 
-friend const fac_calc* mk_fac_calc(const mu_fcn*, bool, bool);
+friend const fac_calc* mk_fac_calc(const mu_fcn*, bool, bool) noexcept;
 
 friend class reweighter;
 };
 
 const fac_calc* mk_fac_calc(
-  const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false);
+  const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false) noexcept;
 
 //-----------------------------------------------
 // Renormalization ------------------------------
@@ -105,20 +105,20 @@ protected:
   const mu_fcn* mu_r;
   bool defaultPDF;
 
-  mutable double ar, lr;
+  mutable double ar, lr, m0;
 
-  ren_calc(const mu_fcn* mu_r, bool defaultPDF);
+  ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept;
   virtual void calc() const noexcept;
 
 public:
   virtual ~ren_calc();
 
-friend const ren_calc* mk_ren_calc(const mu_fcn*, bool);
+friend const ren_calc* mk_ren_calc(const mu_fcn*, bool) noexcept;
 
 friend class reweighter;
 };
 
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF=false);
+const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF=false) noexcept;
 
 //-----------------------------------------------
 // Reweighter: combines fac and ren -------------
