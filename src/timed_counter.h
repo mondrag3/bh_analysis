@@ -20,11 +20,11 @@ public:
     cout << setw(10) << ent << " | ";
     if (hours) {
       cout << setw(5) << hours   << ':'
-      << setw(2) << minutes << ':'
-      << setw(2) << seconds;
+      << setfill('0') << setw(2) << minutes << ':'
+      << setw(2) << seconds << setfill(' ');
     } else if (minutes) {
       cout << setw(2) << minutes << ':'
-      << setw(2) << seconds;
+      << setfill('0') << setw(2) << seconds << setfill(' ');
     } else {
       cout << setw(2) << seconds <<'s';
     }
