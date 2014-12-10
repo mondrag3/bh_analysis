@@ -1,8 +1,6 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <fstream>
-#include <ctime>
 
 #include <boost/program_options.hpp>
 
@@ -10,6 +8,7 @@
 #include "TTree.h"
 
 #include "rew_calc.h"
+#include "timed_counter.h"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -20,65 +19,36 @@ BHEvent event; // extern
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string BH_file, weights_file, pdf_set, conf_file_name;
-  bool old_bh, counter_newline; // continue_on_err
+  string BH_file, weights_file, pdf_set;
+  bool old_bh, counter_newline;
   Long64_t num_events = 0;
-  vector<Float_t> _fHt_fac, _fHt_ren;
 
   try {
     // General Options ------------------------------------
     po::options_description all_opt("Options");
     all_opt.add_options()
       ("help,h", "produce help message")
-      ("bh", po::value<string>(&BH_file),
+      ("bh", po::value<string>(&BH_file)->required(),
        "input event root file (Blackhat ntuple)")
-      ("weights,o", po::value<string>(&weights_file),
+      ("weights,o", po::value<string>(&weights_file)->required(),
        "output root file with new event weights")
-      ("pdf", po::value<string>(&pdf_set),
+      ("pdf", po::value<string>(&pdf_set)->required(),
        "LHAPDF set name")
       ("num-events,n", po::value<Long64_t>(&num_events),
        "process only this many events. Zero means all.")
-    /*("fac", po::value< vector<Float_t> >(&_fHt_fac),
-       "add a factorization scale")
-      ("ren", po::value< vector<Float_t> >(&_fHt_ren),
-       "add a renormalization scale")*/
       ("old-bh", po::bool_switch(&old_bh),
        "read an old BH tree (no part & alphas_power branches)")
-    /*("continue-on-err", po::bool_switch(&continue_on_err),
-       "continue after faulty event; default is break")*/
       ("counter-newline", po::bool_switch(&counter_newline),
        "do not overwrite previous counter message")
-      ("conf,c", po::value<string>(&conf_file_name),
-       "read a configuration file")
     ;
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, all_opt), vm);
-    po::notify(vm);
-    if (vm.count("conf")) {
-      ifstream conf_file(conf_file_name.c_str());
-      po::store(po::parse_config_file<char>(conf_file, all_opt), vm);
-    }
-    po::notify(vm);
-
-    // Options Properties ---------------------------------
     if (argc == 1 || vm.count("help")) {
       cout << all_opt << endl;
       exit(0);
     }
-
-    // Necessary options ----------------------------------
-    vector<string> rec_opt;
-    rec_opt.push_back("bh");
-    rec_opt.push_back("weights");
-    rec_opt.push_back("pdf");
-    //rec_opt.push_back("fac");
-    //rec_opt.push_back("ren");
-
-    for (size_t i=0, size=rec_opt.size(); i<size; ++i) {
-      if (!vm.count(rec_opt[i]))
-      { cerr << "Missing command --" << rec_opt[i] << endl; exit(1); }
-    }
+    po::notify(vm);
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
@@ -146,7 +116,7 @@ int main(int argc, char** argv)
   // pointers to calc (automatically collected)
   // (as well as argument pointers)
   auto FacHt1 = mk_fac_calc(new mu_fHt(1.));
-  auto FacHt2 = mk_fac_calc(new mu_fHt(0.5));
+  auto FacHt2 = mk_fac_calc(new mu_fHt(0.5),true);
   auto FacHt4 = mk_fac_calc(new mu_fHt(0.25));
 
   auto RenHt1 = mk_ren_calc(new mu_fHt(1.));
@@ -156,7 +126,7 @@ int main(int argc, char** argv)
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
-    new reweighter(FacHt2,RenHt2,tree),
+    new reweighter(FacHt2,RenHt2,tree,true),
     new reweighter(FacHt2,RenHt1,tree),
     new reweighter(FacHt2,RenHt4,tree),
     new reweighter(FacHt4,RenHt2,tree),
@@ -166,11 +136,11 @@ int main(int argc, char** argv)
   };
 
   // Reading events from the input ntuple ***************************
-  cout << "\nPrepared to read " << num_events << " events" << endl;
-  time_t time1=time(0), time2;
-  unsigned seconds = 0;
+  cout << "\nReading " << num_events << " events" << endl;
+  timed_counter counter(counter_newline);
 
   for (Long64_t ent=0; ent<num_events; ++ent) {
+    counter(ent);
     tin->GetEntry(ent);
 
     // use event id for event number
@@ -180,20 +150,9 @@ int main(int argc, char** argv)
     calc_all_scales();
     for (auto r : rew) r->stitch();
     tree->Fill();
-
-    // timed counter
-    if ( difftime(time2=time(0),time1) > 1 ) {
-      ++seconds;
-      cout << setw(10) << ent
-           << setw( 7) << seconds << 's';
-      cout.flush();
-      if (counter_newline) cout << endl;
-      else for (char i=0;i<18;++i) cout << '\b';
-      time1 = time2;
-    }
   }
-  cout << setw(10) << num_events
-       << setw( 7) << seconds << 's' << endl << endl;
+  counter.prt(num_events);
+  cout << endl;
 
   fout->Write();
   cout << "\n\033[32mWrote\033[0m: " << fout->GetName() << endl;
@@ -204,9 +163,6 @@ int main(int argc, char** argv)
   delete fin;
 
   for (auto r : rew) delete r;
-
-  // TODO: Implement error reporting in rew_calc
-
 
   return 0;
 }

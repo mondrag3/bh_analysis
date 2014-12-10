@@ -127,6 +127,8 @@ const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF=false) noexcept;
 class reweighter {
   const fac_calc *fac;
   const ren_calc *ren;
+  bool pdf_unc;
+  short nk;
 
   mutable double s[3];
 
@@ -134,7 +136,8 @@ class reweighter {
 
 public:
   // Constructor creates branches on tree
-  reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree);
+  reweighter(const fac_calc* fac, const ren_calc* ren,
+             TTree* tree, bool pdf_unc=false);
   ~reweighter();
   void stitch() const noexcept;
 };

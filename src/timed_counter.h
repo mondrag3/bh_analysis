@@ -8,9 +8,10 @@
 class timed_counter {
   unsigned short seconds = 0, minutes = 0, hours = 0;
   time_t last_time, cur_time;
+  bool newline;
 public:
-  timed_counter()
-  : seconds(0), minutes(0), hours(0), last_time( time(0) )
+  timed_counter(bool newline=false)
+  : seconds(0), minutes(0), hours(0), last_time( time(0) ), newline(newline)
   { }
   template<typename T>
   void prt(const T& ent) const {
@@ -31,15 +32,17 @@ public:
   template<typename T>
   void operator()(const T& ent) {
     using namespace std;
-    
+
     cur_time = time(0);
     if ( difftime(cur_time,last_time) > 1 ) {
       prt(ent);
-      cout.flush();
-
-      if (hours)        for (char i=0;i<24;i++) cout << '\b';
-      else if (minutes) for (char i=0;i<18;i++) cout << '\b';
-      else              for (char i=0;i<16;i++) cout << '\b';
+      if (newline) cout << endl;
+      else {
+        cout.flush();
+        if (hours)        for (char i=0;i<24;i++) cout << '\b';
+        else if (minutes) for (char i=0;i<18;i++) cout << '\b';
+        else              for (char i=0;i<16;i++) cout << '\b';
+      }
 
       last_time = cur_time;
       ++seconds;

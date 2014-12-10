@@ -115,8 +115,6 @@ fac_calc::~fac_calc() {
   delete mu_f;
 }
 
-// TODO: Add a check for branches with the same name
-
 // Renormalization ------------------------------
 
 const ren_calc*
@@ -137,8 +135,9 @@ ren_calc::~ren_calc() {
 // Reweighter: combines fac and ren -------------
 
 // Constructor creates branches on tree
-reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
-: fac(fac), ren(ren)
+reweighter::reweighter(const fac_calc* fac, const ren_calc* ren,
+                       TTree* tree, bool pdf_unc)
+: fac(fac), ren(ren), pdf_unc(pdf_unc), nk(pdf_unc ? 3 : 1)
 {
   if (!pdfset) {
     cerr << "\033[31mNo PDF loaded\033[0m"  << endl;
@@ -154,7 +153,13 @@ reweighter::reweighter(const fac_calc* fac, const ren_calc* ren, TTree* tree)
   cout << "Creating branch: " << name << endl;
   tree->Branch(name.c_str(), &weight[0], (name+"/F").c_str());
 
-  if (fac->pdf_unc) {
+  if (pdf_unc) {
+    if (!fac->pdf_unc) {
+      cerr << "PDF uncertanties are not set to be calculated for "
+           << fac->mu_f->str << endl;
+      exit(1);
+    }
+
     name = ss.str()+"_down";
     cout << "Creating branch: " << name << endl;
     tree->Branch(name.c_str(), &weight[1], (name+"/F").c_str());
@@ -316,7 +321,7 @@ void reweighter::stitch() const noexcept {
   // so these references always points to the right place
   const char part = event.part[0];
 
-  for (short k=0,nk=(fac->pdf_unc?3:1);k<nk;++k) {
+  for (short k=0;k<nk;++k) {
     s[k] = fac->m[0]; // m0
 
     if (part=='V' || part=='I') s[k] += ren->m0; // m0

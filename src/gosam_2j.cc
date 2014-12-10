@@ -216,7 +216,7 @@ int main(int argc, char** argv)
     po::notify(vm);
   }
   catch(exception& e) {
-    cerr << "Error: " <<  e.what() << endl;
+    cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
     exit(1);
   }
   // END OPTIONS ****************************************************
