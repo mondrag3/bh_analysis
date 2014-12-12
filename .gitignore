@@ -1,13 +1,13 @@
 # Compilation output
-lib
-bin
+/lib
+/bin
 
 # Computation output
-out
-*.root
-*.out
-*.err
-gosam*
+/out
+/*.root
+/*.out
+/*.err
+/gosam
 
 # Input files
-data
+/data

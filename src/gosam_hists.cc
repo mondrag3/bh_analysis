@@ -192,11 +192,12 @@ int main(int argc, char** argv)
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
-      ("jet-alg,j", po::value<vector<string>>(&jet_algs)->
-                    default_value(vector<string>(1,"AntiKt4"),"AntiKt4"),
-       "jet algorithms from SJ file")
-      ("weight,w", po::value<vector<string>>(&weights)->required(),
-       "weight from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent")
+      ("jet-alg,j", po::value<vector<string>>(&jet_algs),
+       "jet algorithms from SJ file, e.g. AntiKt4; "
+       "if skipped, all algorithms from sj files are used")
+      ("weight,w", po::value<vector<string>>(&weights),
+       "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
+       "if skipped, all weights from wt files are used")
       ("style,s", po::value<string>(&css_file)->required(),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value< range<Long64_t> >(&num_events),
@@ -272,18 +273,38 @@ int main(int argc, char** argv)
   event.SetTree(tree, BHEvent::kinematics);
 
   // SpartyJet tree branches
-  cout << "Selected jet clustering algorithms:" << endl;
-  for (auto& j : jet_algs) {
-    cout << j << endl;
-    SJClusterAlg::add(tree,j);
+  if (jet_algs.size()) {
+    cout << "Selected jet clustering algorithms:" << endl;
+    for (auto& j : jet_algs) {
+      cout << j << endl;
+      SJClusterAlg::add(tree,j);
+    }
+  } else {
+    cout << "Using all jet clustering algorithms:" << endl;
+    const TObjArray *br = sj_tree->GetListOfBranches();
+    for (Int_t i=0,n=br->GetEntries();i<n;++i) {
+      auto j = br->At(i)->GetName();
+      cout << j << endl;
+      SJClusterAlg::add(tree,j);
+    }
   }
   cout << endl;
 
   // Weights tree branches
-  cout << "Selected weights:" << endl;
-  for (auto& w : weights) {
-    cout << w << endl;
-    weight::add(tree,w);
+  if (weights.size()) {
+    cout << "Selected weights:" << endl;
+    for (auto& w : weights) {
+      cout << w << endl;
+      weight::add(tree,w);
+    }
+  } else {
+    cout << "Using all weights:" << endl;
+    const TObjArray *br = wt_tree->GetListOfBranches();
+    for (Int_t i=0,n=br->GetEntries();i<n;++i) {
+      auto w = br->At(i)->GetName();
+      cout << w << endl;
+      weight::add(tree,w);
+    }
   }
   cout << endl;
 
