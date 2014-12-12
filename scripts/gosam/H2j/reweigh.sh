@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dir=gosam_H2j
+dir=/msu/data/t3work5/ivanp/ntuple_analysis/gosam/H2j
 
 part=$1
 
