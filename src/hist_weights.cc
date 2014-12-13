@@ -9,7 +9,7 @@
 #include <TBranch.h>
 #include <TH1.h>
 
-#include "hist_wrap.h"
+#include <kiwi/csshists.h>
 
 using namespace std;
 
@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 {
   if (argc!=4) {
     cout << "Usage: " << argv[0]
-         << " weights.root binning.bins hist.root" << endl;
+         << " weights.root bins.css hist.root" << endl;
     return 0;
   }
 
@@ -31,19 +31,19 @@ int main(int argc, char** argv)
   const TObjArray *brarr = tree->GetListOfBranches();
   const size_t numbr = brarr->GetEntries();
 
-  hist::read_binnings(argv[2]);
+  kiwi::csshists css(argv[2]);
 
   TFile *fout = new TFile(argv[3],"recreate");
 
   vector<Float_t> x(numbr);
-  vector<hist*> h;
+  vector<TH1*> h;
 
   for (size_t i=0;i<numbr;++i) {
     TBranch *br = dynamic_cast<TBranch*>(brarr->At(i));
     string name = br->GetName();
     cout << "Branch: " << name << endl;
     br->SetAddress(&x[i]);
-    h.push_back(new hist(name));
+    h.push_back(css.mkhist(name));
   }
 
   const Long64_t nent = tree->GetEntries();
