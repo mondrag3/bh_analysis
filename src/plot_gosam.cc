@@ -11,7 +11,7 @@
 #include <TKey.h>
 #include <TH1.h>
 
-#include <kiwi/propmap.h>
+#include <kiwi/propmap11.h>
 
 using namespace std;
 namespace po = boost::program_options;
@@ -20,11 +20,14 @@ namespace po = boost::program_options;
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 // ******************************************************************
-void hist_key(vector<prop_ptr>& hkey, TH1* h) noexcept {
+typedef propmap<TH1*,5> hmap_t;
+typedef hmap_t::Key hkey_t;
+
+void hist_key(hkey_t& hkey, TH1* h) noexcept {
   hkey[0] = new prop<string>(h->GetName());
 }
 
-bool dir_key(vector<prop_ptr>& hkey, TDirectory* d) noexcept {
+bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
   static const boost::regex regex("Fac(.*)_Ren(.*)_PDF(.*)_(.*)");
   static boost::smatch result;
   if ( boost::regex_search(string(d->GetName()), result, regex) ) {
@@ -77,55 +80,10 @@ int main(int argc, char** argv)
   if (f->IsZombie()) exit(1);
 
   // property map of histograms
-  propmap<TH1*> hists(5);
-  vector<prop_ptr> hkey(5);
+  hmap_t hmap;
+  hkey_t hkey;
 
   // Get histograms *************************************************
-/*  {
-    static TKey *key1;
-    TIter nextkey1(f->GetListOfKeys());
-    while ((key1 = (TKey*)nextkey1())) {
-      static TObject *obj1;
-      obj1 = key1->ReadObj();
-      if (obj1->InheritsFrom(TDirectory::Class())) {
-
-        TDirectory *d1 = static_cast<TDirectory*>(obj1);
-        static TKey *key2;
-        TIter nextkey2(d1->GetListOfKeys());
-        while ((key2 = (TKey*)nextkey2())) {
-          static TObject *obj2;
-          obj2 = key2->ReadObj();
-          if (obj2->InheritsFrom(TDirectory::Class())) {
-
-            TDirectory *d2 = static_cast<TDirectory*>(obj2);
-            static TKey *key3;
-            TIter nextkey3(d2->GetListOfKeys());
-            while ((key3 = (TKey*)nextkey3())) {
-              static TObject *obj3;
-              obj3 = key3->ReadObj();
-
-              if (obj3->InheritsFrom(TH1::Class())) {
-                TH1* h = static_cast<TH1*>(obj3);
-                hist_key(hkey,h,d2,d1);
-                hists.insert(hkey,h);
-              }
-            }
-
-          } else if (obj2->InheritsFrom(TH1::Class())) {
-            TH1* h = static_cast<TH1*>(obj2);
-            hist_key(hkey,h,d1);
-            hists.insert(hkey,h);
-          }
-        }
-
-      } else if (obj1->InheritsFrom(TH1::Class())) {
-        TH1* h = static_cast<TH1*>(obj1);
-        hist_key(hkey,h);
-        hists.insert(hkey,h);
-      }
-    }
-  }*/
-
   {
     static TKey *key1;
     TIter nextkey1(f->GetListOfKeys());
@@ -145,7 +103,7 @@ int main(int argc, char** argv)
             if (obj2->InheritsFrom(TH1::Class())) {
               TH1* h = static_cast<TH1*>(obj2);
               hist_key(hkey,h);
-              hists.insert(hkey,h);
+              hmap.insert(hkey,h);
             }
           }
         } else if (!jet_alg.compare(d1->GetName())) {
@@ -167,7 +125,7 @@ int main(int argc, char** argv)
                   if (obj3->InheritsFrom(TH1::Class())) {
                     TH1* h = static_cast<TH1*>(obj3);
                     hist_key(hkey,h);
-                    hists.insert(hkey,h);
+                    hmap.insert(hkey,h);
                   }
                 }
               }
@@ -179,8 +137,26 @@ int main(int argc, char** argv)
     }
   }
 
-  // Get histograms *************************************************
+  // Make plots *****************************************************
+  TH1* h;
+  hmap.loop<0>(hkey,[&](hkey_t key) noexcept {
+    test(key[0]->str())
+    hmap.loop<1>(hkey,[&](hkey_t key) noexcept {
+      hmap.loop<2>(hkey,[&](hkey_t key) noexcept {
+        hmap.loop<3>(hkey,[&](hkey_t key) noexcept {
+          hmap.loop<4>(hkey,[&](hkey_t key) noexcept {
 
+            if (hmap.get(key,h))
+              cout << key[1]->str() << '_'
+                   << key[2]->str() << '_'
+                   << key[3]->str() << '_'
+                   << key[4]->str() << endl;
+
+          });
+        });
+      });
+    });
+  });
 
   return 0;
 }
