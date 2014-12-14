@@ -20,38 +20,20 @@ namespace po = boost::program_options;
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 // ******************************************************************
-const prop<string> * const nullprop = new const prop<string>("");
-
-void hist_key(vector<prop_ptr>& hkey, TH1* h) {
-  for (auto& p : hkey) p = nullprop;
+void hist_key(vector<prop_ptr>& hkey, TH1* h) noexcept {
   hkey[0] = new prop<string>(h->GetName());
 }
 
-void hist_key(vector<prop_ptr>& hkey, TH1* h, TDirectory* d1) {
-  hist_key(hkey,h);
-
+bool dir_key(vector<prop_ptr>& hkey, TDirectory* d) noexcept {
   static const boost::regex regex("Fac(.*)_Ren(.*)_PDF(.*)_(.*)");
   static boost::smatch result;
-  if ( boost::regex_search(string(d1->GetName()), result, regex) ) {
+  if ( boost::regex_search(string(d->GetName()), result, regex) ) {
     hkey[1] = new prop<string>( string(result[1].first, result[1].second) );
     hkey[2] = new prop<string>( string(result[2].first, result[2].second) );
     hkey[3] = new prop<string>( string(result[3].first, result[3].second) );
     hkey[4] = new prop<string>( string(result[4].first, result[4].second) );
-  } else throw runtime_error(string("Directory name \"") + d1->GetName()
-                             + "\" does not match regex");
-}
-
-void hist_key(vector<prop_ptr>& hkey, TH1* h, TDirectory* d1, TDirectory* d2) {
-  hist_key(hkey,h);
-  hist_key(hkey,h,d1);
-
-  static const boost::regex regex("(\\D*)(\\d*)");
-  static boost::smatch result;
-  if ( boost::regex_search(string(d2->GetName()), result, regex) ) {
-    hkey[5] = new prop<string>( string(result[1].first, result[1].second) );
-    hkey[6] = new prop<string>( string(result[2].first, result[2].second) );
-  } else throw runtime_error(string("Directory name \"") + d2->GetName()
-                             + "\" does not match regex");
+    return true;
+  } else return false;
 }
 
 // ******************************************************************
@@ -68,10 +50,10 @@ int main(int argc, char** argv)
     ("help,h", "produce help message")
     ("input,i", po::value<string>(&ifile)->required(),
      "input file with histograms")
-     ("output,o", po::value<string>(&ofile)->required(),
+    ("output,o", po::value<string>(&ofile)->required(),
      "output pdf plots")
-     ("jet-alg,o", po::value<string>(&jet_alg)->required(),
-     "jet algorithm, e.g. AntiKt4")
+    ("jet-alg,j", po::value<string>(&jet_alg)->default_value("AntiKt4"),
+     "jet algorithm")
     ("scales", po::value<vector<string>>(&scales)
      ->default_value({"0.25Ht","0.5Ht","1Ht"},"Ht/4, Ht/2, Ht"),
      "fac and ren scales")
@@ -95,11 +77,11 @@ int main(int argc, char** argv)
   if (f->IsZombie()) exit(1);
 
   // property map of histograms
-  propmap<TH1*> hists(7);
-  vector<prop_ptr> hkey(7);
+  propmap<TH1*> hists(5);
+  vector<prop_ptr> hkey(5);
 
   // Get histograms *************************************************
-  {
+/*  {
     static TKey *key1;
     TIter nextkey1(f->GetListOfKeys());
     while ((key1 = (TKey*)nextkey1())) {
@@ -140,6 +122,59 @@ int main(int argc, char** argv)
         TH1* h = static_cast<TH1*>(obj1);
         hist_key(hkey,h);
         hists.insert(hkey,h);
+      }
+    }
+  }*/
+
+  {
+    static TKey *key1;
+    TIter nextkey1(f->GetListOfKeys());
+    while ((key1 = (TKey*)nextkey1())) {
+      static TObject *obj1;
+      obj1 = key1->ReadObj();
+      if (obj1->InheritsFrom(TDirectory::Class())) {
+
+        TDirectory *d1 = static_cast<TDirectory*>(obj1);
+
+        if (dir_key(hkey,d1)) {
+          static TKey *key2;
+          TIter nextkey2(d1->GetListOfKeys());
+          while ((key2 = (TKey*)nextkey2())) {
+            static TObject *obj2;
+            obj2 = key2->ReadObj();
+            if (obj2->InheritsFrom(TH1::Class())) {
+              TH1* h = static_cast<TH1*>(obj2);
+              hist_key(hkey,h);
+              hists.insert(hkey,h);
+            }
+          }
+        } else if (!jet_alg.compare(d1->GetName())) {
+          static TKey *key2;
+          TIter nextkey2(d1->GetListOfKeys());
+          while ((key2 = (TKey*)nextkey2())) {
+            static TObject *obj2;
+            obj2 = key2->ReadObj();
+            if (obj2->InheritsFrom(TDirectory::Class())) {
+
+              TDirectory *d2 = static_cast<TDirectory*>(obj2);
+
+              if (dir_key(hkey,d2)) {
+                static TKey *key3;
+                TIter nextkey3(d2->GetListOfKeys());
+                while ((key3 = (TKey*)nextkey3())) {
+                  static TObject *obj3;
+                  obj3 = key3->ReadObj();
+                  if (obj3->InheritsFrom(TH1::Class())) {
+                    TH1* h = static_cast<TH1*>(obj3);
+                    hist_key(hkey,h);
+                    hists.insert(hkey,h);
+                  }
+                }
+              }
+
+            }
+          }
+        }
       }
     }
   }
