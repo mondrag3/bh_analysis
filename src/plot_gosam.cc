@@ -10,6 +10,9 @@
 #include <TDirectory.h>
 #include <TKey.h>
 #include <TH1.h>
+#include <TCanvas.h>
+#include <TLegend.h>
+#include <TAxis.h>
 
 #include <kiwi/propmap11.h>
 
@@ -43,7 +46,7 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string ifile, ofile, jet_alg;
+  string fin, fout, jet_alg;
   vector<string> scales;
 
   try {
@@ -51,9 +54,9 @@ int main(int argc, char** argv)
     po::options_description all_opt("Options");
     all_opt.add_options()
     ("help,h", "produce help message")
-    ("input,i", po::value<string>(&ifile)->required(),
+    ("input,i", po::value<string>(&fin)->required(),
      "input file with histograms")
-    ("output,o", po::value<string>(&ofile)->required(),
+    ("output,o", po::value<string>(&fout)->required(),
      "output pdf plots")
     ("jet-alg,j", po::value<string>(&jet_alg)->default_value("AntiKt4"),
      "jet algorithm")
@@ -76,7 +79,7 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  TFile *f = new TFile(ifile.c_str(),"read");
+  TFile *f = new TFile(fin.c_str(),"read");
   if (f->IsZombie()) exit(1);
 
   // property map of histograms
@@ -138,25 +141,45 @@ int main(int argc, char** argv)
   }
 
   // Make plots *****************************************************
+  cout << "\033[36mPDF:\033[0m " << hkey[3]->str() << endl << endl;
+
+  const prop_ptr pdf_cent = new prop<string>("cent");
+  const prop_ptr pdf_down = new prop<string>("down");
+  const prop_ptr pdf_up   = new prop<string>("up");
+
+  TCanvas canv;
+  canv.SaveAs((fout+'[').c_str());
+
   TH1* h;
   hmap.loop<0>(hkey,[&](hkey_t key) noexcept {
-    test(key[0]->str())
+    cout << "\033[36mHistogram:\033[0m " << key[0]->str() << endl;
+    key[4] = pdf_cent;
+    int i=0;
     hmap.loop<1>(hkey,[&](hkey_t key) noexcept {
       hmap.loop<2>(hkey,[&](hkey_t key) noexcept {
         hmap.loop<3>(hkey,[&](hkey_t key) noexcept {
-          hmap.loop<4>(hkey,[&](hkey_t key) noexcept {
 
-            if (hmap.get(key,h))
-              cout << key[1]->str() << '_'
-                   << key[2]->str() << '_'
-                   << key[3]->str() << '_'
-                   << key[4]->str() << endl;
+          if (hmap.get(key,h)) {
+            h->SetLineColor(i+2);
+            h->SetTitle(key[0]->str().c_str());
 
-          });
+            if (i==0) h->Draw();
+            else h->Draw("same");
+            ++i;
+          }
+
         });
       });
     });
+
+    // leg.Draw();
+    canv.SaveAs(fout.c_str());
+
   });
+
+  canv.SaveAs((fout+']').c_str());
+
+  delete f;
 
   return 0;
 }
