@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <algorithm>
 #include <stdexcept>
 
 #include <boost/program_options.hpp>
@@ -13,8 +14,9 @@
 #include <TCanvas.h>
 #include <TLegend.h>
 #include <TAxis.h>
+#include <TGraphAsymmErrors.h>
 
-#include <kiwi/propmap11.h>
+#include "propmap11.h"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -26,6 +28,8 @@ cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 typedef propmap<TH1*,5> hmap_t;
 typedef hmap_t::Key hkey_t;
 
+vector<string> scales;
+
 void hist_key(hkey_t& hkey, TH1* h) noexcept {
   hkey[0] = new prop<string>(h->GetName());
 }
@@ -35,7 +39,11 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
   static boost::smatch result;
   if ( boost::regex_search(string(d->GetName()), result, regex) ) {
     hkey[1] = new prop<string>( string(result[1].first, result[1].second) );
+    if ( find(scales.begin(),scales.end(),hkey[1]->str())==scales.end() )
+      return false;
     hkey[2] = new prop<string>( string(result[2].first, result[2].second) );
+    if ( find(scales.begin(),scales.end(),hkey[2]->str())==scales.end() )
+      return false;
     hkey[3] = new prop<string>( string(result[3].first, result[3].second) );
     hkey[4] = new prop<string>( string(result[4].first, result[4].second) );
     return true;
@@ -46,8 +54,7 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string fin, fout, jet_alg;
-  vector<string> scales;
+  string fin, fout, jet_alg, pdf;
 
   try {
     // General Options ------------------------------------
@@ -60,6 +67,8 @@ int main(int argc, char** argv)
      "output pdf plots")
     ("jet-alg,j", po::value<string>(&jet_alg)->default_value("AntiKt4"),
      "jet algorithm")
+    ("pdf", po::value<string>(&pdf),
+     "select PDF set of there are multiple in the file")
     ("scales", po::value<vector<string>>(&scales)
      ->default_value({"0.25Ht","0.5Ht","1Ht"},"Ht/4, Ht/2, Ht"),
      "fac and ren scales")
@@ -141,41 +150,106 @@ int main(int argc, char** argv)
   }
 
   // Make plots *****************************************************
-  cout << "\033[36mPDF:\033[0m " << hkey[3]->str() << endl << endl;
+  if (pdf.size()) {
+    hkey[3] = new prop<string>(pdf);
+    if (!hmap.pset<3>().count(hkey[3])) {
+      cerr << "No PDF property: " << pdf << endl;
+      exit(1);
+    }
+  } else if (hmap.pset<3>().size()>1) {
+    cerr << "More then one PDF property:" << endl;
+    for (auto& p : hmap.pset<3>()) {
+      cerr <<"  "<< p << endl;
+    }
+    exit(1);
+  }
+  cout << "\033[36mPDF:\033[0m " << hkey[3] << endl << endl;
 
   const prop_ptr pdf_cent = new prop<string>("cent");
   const prop_ptr pdf_down = new prop<string>("down");
   const prop_ptr pdf_up   = new prop<string>("up");
 
+  const prop_ptr mu_cent = new prop<string>(scales[1]);
+
   TCanvas canv;
   canv.SaveAs((fout+'[').c_str());
 
-  TH1* h;
-  hmap.loop<0>(hkey,[&](hkey_t key) noexcept {
-    cout << "\033[36mHistogram:\033[0m " << key[0]->str() << endl;
-    key[4] = pdf_cent;
-    int i=0;
-    hmap.loop<1>(hkey,[&](hkey_t key) noexcept {
-      hmap.loop<2>(hkey,[&](hkey_t key) noexcept {
-        hmap.loop<3>(hkey,[&](hkey_t key) noexcept {
+  for (auto& hname : hmap.pset<0>()) {
+    static TH1 *h(nullptr);
+    TH1 *h_cent(nullptr), *h_pdf_lo(nullptr), *h_pdf_hi(nullptr);
+    vector<TH1*> h_scales;
 
-          if (hmap.get(key,h)) {
-            h->SetLineColor(i+2);
-            h->SetTitle(key[0]->str().c_str());
+    cout << "\033[36mHistogram:\033[0m " << hname << endl;
+    hkey[0] = hname;
 
-            if (i==0) h->Draw();
-            else h->Draw("same");
-            ++i;
-          }
+    for (auto& fac : hmap.pset<1>()) {
+      hkey[1] = fac;
+      for (auto& ren : hmap.pset<2>()) {
+        hkey[2] = ren;
+        for (auto& dev : hmap.pset<4>()) {
+          hkey[4] = dev;
 
-        });
-      });
-    });
+            if (hmap.get(hkey,h)) {
+              if (fac==mu_cent && ren==mu_cent) {
+                if (dev==pdf_cent)      h_cent   = h;
+                else if (dev==pdf_down) h_pdf_lo = h;
+                else if (dev==pdf_up)   h_pdf_hi = h;
+              } else h_scales.push_back(h);
+            }
+
+        }
+      }
+    }
+
+    const size_t nbins = h_cent->GetNbinsX();
+    vector<Float_t> bins_edge(nbins,0.),
+                    bins_wdth(nbins,0.),
+                    cent     (nbins,0.),
+                    scales_lo(nbins,0.),
+                    scales_hi(nbins,0.),
+                    pdf_lo   (nbins,0.),
+                    pdf_hi   (nbins,0.);
+
+    for (size_t i=0;i<nbins;++i) {
+      bins_edge[i] = h_cent  ->GetBinLowEdge(i+1);
+      bins_wdth[i] = h_cent  ->GetBinLowEdge(i+2)-bins_edge[i];
+      cent  [i]    = h_cent  ->GetBinContent(i+1);
+      pdf_lo[i]    = h_pdf_lo->GetBinContent(i+1);
+      pdf_hi[i]    = h_pdf_hi->GetBinContent(i+1);
+      scales_lo[i] = h_cent  ->GetBinContent(i+1);
+      scales_hi[i] = h_cent  ->GetBinContent(i+1);
+      for (TH1 *hs : h_scales) {
+        Double_t x = hs->GetBinContent(i+1);
+        if (scales_lo[i]>x) scales_lo[i] = x;
+        if (scales_hi[i]<x) scales_hi[i] = x;
+      }
+    }
+
+    TGraphAsymmErrors g_scales (nbins,&bins_edge[0],&cent[0],
+                                      0,&bins_wdth[0],
+                                      &scales_lo[0],&scales_hi[0]),
+                      g_pdf_unc(nbins,&bins_edge[0],&cent[0],
+                                      0,&bins_wdth[0],
+                                      &pdf_lo[0],&pdf_hi[0]);
+
+    g_scales .GetXaxis()
+      ->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
+    g_scales .SetTitle(h_cent->GetName());
+    g_scales .SetFillColor(2);
+    g_scales .SetFillStyle(3005);
+    g_scales .SetLineWidth(1);
+    g_scales .Draw("a2");
+    g_pdf_unc.SetFillColor(4);
+    g_pdf_unc.SetFillStyle(3004);
+    g_pdf_unc.SetLineWidth(1);
+    g_pdf_unc.Draw("2");
+    h_cent  ->SetLineWidth(2);
+    h_cent  ->Draw("same");
 
     // leg.Draw();
     canv.SaveAs(fout.c_str());
 
-  });
+  }
 
   canv.SaveAs((fout+']').c_str());
 
