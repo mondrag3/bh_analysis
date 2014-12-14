@@ -77,9 +77,9 @@ int main(int argc, char** argv)
     po::options_description all_opt("Options");
     all_opt.add_options()
       ("help,h", "produce help message")
-      ("input,i", po::value<string>(&ifile),
+      ("input,i", po::value<string>(&ifile)->required(),
        "input file with all histograms")
-      ("output,o", po::value<string>(&ofile),
+      ("output,o", po::value<string>(&ofile)->required(),
        "output file with only weight histograms")
       ("pdf", po::value<string>(&pdf_name)->default_value("MSTW2008nlo68cl"),
        "select pdf name")
@@ -89,27 +89,15 @@ int main(int argc, char** argv)
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, all_opt), vm);
-    po::notify(vm);
-
-    // Options Properties ---------------------------------
     if (argc == 1 || vm.count("help")) {
       cout << all_opt << endl;
       return 0;
     }
-
-    // Necessary options ----------------------------------
-    vector<string> rec_opt;
-    rec_opt.push_back("input");
-    rec_opt.push_back("output");
-
-    for (size_t i=0, size=rec_opt.size(); i<size; ++i) {
-      if (!vm.count(rec_opt[i]))
-      { cerr << "Missing command --" << rec_opt[i] << endl; return 1; }
-    }
+    po::notify(vm);
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
-    return 1;
+    exit(1);
   }
   // END OPTIONS ****************************************************
 
