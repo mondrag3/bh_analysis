@@ -13,6 +13,7 @@
 #include <TH1.h>
 #include <TCanvas.h>
 #include <TLegend.h>
+#include <TText.h>
 #include <TAxis.h>
 #include <TGraphAsymmErrors.h>
 
@@ -54,7 +55,7 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string fin, fout, jet_alg, pdf;
+  string fin, fout, jet_alg, pdf, part;
 
   try {
     // General Options ------------------------------------
@@ -72,6 +73,8 @@ int main(int argc, char** argv)
     ("scales", po::value<vector<string>>(&scales)
      ->default_value({"0.25Ht","0.5Ht","1Ht"},"Ht/4, Ht/2, Ht"),
      "fac and ren scales")
+    ("part", po::value<string>(&part),
+     "calculation part; string appended to each title")
     ;
 
     po::variables_map vm;
@@ -236,7 +239,10 @@ int main(int argc, char** argv)
 
     g_scales .GetXaxis()
       ->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
-    g_scales .SetTitle(h_cent->GetName());
+    g_scales .SetTitle(
+      ( part.size() ? (h_cent->GetName()+(' '+part)).c_str()
+                    :  h_cent->GetName() )
+    );
     g_scales .SetFillColorAlpha(2,0.5);
     // g_scales .SetLineColor(10);
     // g_scales .SetFillStyle(3004);
@@ -260,6 +266,13 @@ int main(int argc, char** argv)
     leg.AddEntry(&g_scales, "Scale unc");
     leg.AddEntry(&g_pdf_unc,"PDF unc");
     leg.Draw();
+
+    TText jet_alg_lbl(0.73,0.74,("Jet alg: "+jet_alg).c_str());
+    jet_alg_lbl.SetNDC();
+    jet_alg_lbl.SetTextAlign(13);
+    jet_alg_lbl.SetTextFont(42);
+    jet_alg_lbl.SetTextSize(0.035);
+    jet_alg_lbl.Draw();
 
     // leg.Draw();
     canv.SaveAs(fout.c_str());
