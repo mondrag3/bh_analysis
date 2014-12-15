@@ -27,7 +27,7 @@ struct SJClusterAlg {
   ~SJClusterAlg();
 
   static std::vector<std::unique_ptr<const SJClusterAlg>> all;
-  static void add(TTree* tree, const std::string& name);
+  static void add(TTree* tree, const std::string& name) noexcept;
 };
 
 #endif

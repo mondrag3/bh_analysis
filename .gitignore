@@ -5,6 +5,7 @@
 # Computation output
 /out
 /*.root
+/*.pdf
 /*.out
 /*.err
 /gosam

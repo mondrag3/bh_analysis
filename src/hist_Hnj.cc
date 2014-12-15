@@ -176,6 +176,7 @@ int main(int argc, char** argv)
   vector<string> bh_files, sj_files, wt_files,
                  jet_algs, weights;
   string output_file, css_file;
+  double pt_cut, eta_cut;
   range<Long64_t> num_events;
   bool quiet;
 
@@ -198,6 +199,10 @@ int main(int argc, char** argv)
       ("weight,w", po::value<vector<string>>(&weights),
        "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
        "if skipped, all weights from wt files are used")
+      ("pt-cut", po::value<double>(&pt_cut)->default_value(30.),
+       "jet pT cut")
+      ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4),
+       "jet eta cut")
       ("style,s", po::value<string>(&css_file)->required(),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value< range<Long64_t> >(&num_events),
@@ -208,12 +213,10 @@ int main(int argc, char** argv)
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
-
     if (argc == 1 || vm.count("help")) {
       cout << desc << endl;
       return 0;
     }
-
     po::notify(vm);
   }
   catch(exception& e) {
@@ -428,7 +431,7 @@ int main(int argc, char** argv)
       hist::alg_ptr = alg.get(); // set static algorithm pointer for histograms
 
       // sort jets by Pt
-      const vector<TLorentzVector> jets = alg->jetsByPt(30.,5.);
+      const vector<TLorentzVector> jets = alg->jetsByPt(pt_cut,eta_cut);
       const size_t njets = jets.size(); // number of jets
 
       h_NJet_excl.Fill(njets);

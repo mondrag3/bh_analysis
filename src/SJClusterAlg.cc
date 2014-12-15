@@ -28,16 +28,16 @@ SJClusterAlg::~SJClusterAlg() { }
 
 vector<unique_ptr<const SJClusterAlg>> SJClusterAlg::all;
 
-void SJClusterAlg::add(TTree* tree, const string& name) {
+void SJClusterAlg::add(TTree* tree, const string& name) noexcept {
   all.emplace_back( new SJClusterAlg(tree,name) );
 }
 
 class sortByPt { // class used for jet sorting
   const SJClusterAlg *p;
   public:
-  sortByPt(const SJClusterAlg* p): p(p) { }
-  bool operator() (Int_t i, Int_t j) const {
-    return ( p->pt->at(i) > p->pt->at(j) ); // decending order
+  sortByPt(const SJClusterAlg* p) noexcept: p(p) { }
+  bool operator() (Int_t i, Int_t j) const noexcept {
+    return ( p->pt->operator[](i) > p->pt->operator[](j) ); // decending order
   }
 };
 
@@ -56,7 +56,7 @@ vector<TLorentzVector> SJClusterAlg::jetsByPt(double pt_cut, double eta_cut) con
     if (_pt  < pt_cut ) continue;
     if ( abs(_eta) > eta_cut) continue;
 
-    jets.push_back(TLorentzVector());
+    jets.emplace_back();
     jets.back().SetPtEtaPhiM(_pt,_eta,phi->at(j[i]),mass->at(j[i]));
   }
 
