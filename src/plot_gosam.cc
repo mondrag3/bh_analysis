@@ -211,40 +211,55 @@ int main(int argc, char** argv)
                     pdf_hi   (nbins,0.);
 
     for (size_t i=0;i<nbins;++i) {
-      bins_edge[i] = h_cent  ->GetBinLowEdge(i+1);
-      bins_wdth[i] = h_cent  ->GetBinLowEdge(i+2)-bins_edge[i];
-      cent  [i]    = h_cent  ->GetBinContent(i+1);
-      pdf_lo[i]    = h_pdf_lo->GetBinContent(i+1);
-      pdf_hi[i]    = h_pdf_hi->GetBinContent(i+1);
-      scales_lo[i] = h_cent  ->GetBinContent(i+1);
-      scales_hi[i] = h_cent  ->GetBinContent(i+1);
+      bins_edge[i] = h_cent->GetBinLowEdge(i+1);
+      bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
+      cent  [i]    = h_cent->GetBinContent(i+1);
+      pdf_lo[i]    = cent[i] - h_pdf_lo->GetBinContent(i+1);
+      pdf_hi[i]    = h_pdf_hi->GetBinContent(i+1) - cent[i];
       for (TH1 *hs : h_scales) {
-        Double_t x = hs->GetBinContent(i+1);
-        if (scales_lo[i]>x) scales_lo[i] = x;
-        if (scales_hi[i]<x) scales_hi[i] = x;
+        Double_t x = hs->GetBinContent(i+1) - cent[i];
+        if (x>0.) {
+          if (scales_hi[i]<x) scales_hi[i] = x;
+        } else {
+          x = -x;
+          if (scales_lo[i]<x) scales_lo[i] = x;
+        }
       }
     }
 
-    TGraphAsymmErrors g_scales (nbins,&bins_edge[0],&cent[0],
-                                      0,&bins_wdth[0],
-                                      &scales_lo[0],&scales_hi[0]),
-                      g_pdf_unc(nbins,&bins_edge[0],&cent[0],
-                                      0,&bins_wdth[0],
-                                      &pdf_lo[0],&pdf_hi[0]);
+    TGraphAsymmErrors g_scales (nbins,bins_edge.data(),cent.data(),
+                                      0,bins_wdth.data(),
+                                      scales_lo.data(),scales_hi.data()),
+                      g_pdf_unc(nbins,bins_edge.data(),cent.data(),
+                                      0,bins_wdth.data(),
+                                      pdf_lo.data(),pdf_hi.data());
 
     g_scales .GetXaxis()
       ->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
     g_scales .SetTitle(h_cent->GetName());
-    g_scales .SetFillColor(2);
-    g_scales .SetFillStyle(3005);
-    g_scales .SetLineWidth(1);
+    g_scales .SetFillColorAlpha(2,0.5);
+    // g_scales .SetLineColor(10);
+    // g_scales .SetFillStyle(3004);
+    g_scales .SetLineWidth(0);
+    // g_scales .SetMarkerColor(4);
+    // g_scales .SetMarkerStyle(21);
     g_scales .Draw("a2");
-    g_pdf_unc.SetFillColor(4);
-    g_pdf_unc.SetFillStyle(3004);
-    g_pdf_unc.SetLineWidth(1);
+    g_pdf_unc.SetFillColorAlpha(4,0.5);
+    // g_pdf_unc.SetLineColor(10);
+    // g_pdf_unc.SetFillStyle(3005);
+    g_pdf_unc.SetLineWidth(0);
     g_pdf_unc.Draw("2");
     h_cent  ->SetLineWidth(2);
+    h_cent  ->SetLineColor(1);
     h_cent  ->Draw("same");
+    // h_pdf_lo->Draw("same");
+    // h_pdf_hi->Draw("same");
+
+    TLegend leg(0.72,0.75,0.89,0.89);
+    leg.SetBorderSize(0);
+    leg.AddEntry(&g_scales, "Scale unc");
+    leg.AddEntry(&g_pdf_unc,"PDF unc");
+    leg.Draw();
 
     // leg.Draw();
     canv.SaveAs(fout.c_str());
