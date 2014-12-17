@@ -337,6 +337,7 @@ int main(int argc, char** argv)
   fout->cd();
 
   // Book histograms ************************************************
+  TH1* h_N   = hist::css->mkhist("N");
   TH1* h_pid = hist::css->mkhist("pid");
 
   hist_wt h_xs("xs"),
@@ -408,6 +409,8 @@ int main(int argc, char** argv)
       }
       continue; // skip to next event
     }
+
+    h_N->Fill(0.5);
 
     // Higgs 4-vector
     const TLorentzVector higgs(event.px[hi],event.py[hi],event.pz[hi],event.E[hi]);
