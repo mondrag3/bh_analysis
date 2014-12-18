@@ -345,7 +345,7 @@ int main(int argc, char** argv)
   TH1* h_pid = hist::css->mkhist("pid");
 
   hist_wt h_xs("xs"),
-          h_H_mass("H_mass"), h_H_pt("H_pt"), h_H_y("H_y")
+          h_H_mass("H_mass"), h_H_pt("H_pT"), h_H_y("H_y")
   ;
 
   #define h_(name) h_##name(#name)

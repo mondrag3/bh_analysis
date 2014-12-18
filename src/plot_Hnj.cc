@@ -272,9 +272,9 @@ int main(int argc, char** argv)
       ( title.size() ? (h_cent->GetName()+(' '+title)).c_str()
                      :  h_cent->GetName() )
     );
-    g_scales.GetXaxis()->SetTitle("GeV");
+    //g_scales.GetXaxis()->SetTitle("GeV");
     TAxis *ya = g_scales.GetYaxis();
-    ya->SetTitle("d#sigma/dE, pb/GeV");
+    ya->SetTitle("d#sigma, pb");
     ya->SetTitleOffset(1.3);
 
     g_scales.SetFillColorAlpha(2,0.5);
