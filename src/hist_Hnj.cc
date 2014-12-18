@@ -95,7 +95,6 @@ public:
       const weight *w = wt.get();
       dirs[w]->cd();
       h[w] = static_cast<TH1*>( hist->Clone() );
-      // hist->Clone( (w->name+"__"+name).c_str() )
     }
     delete hist;
   }
@@ -119,7 +118,6 @@ public:
         const auto k = make_pair(alg.get(),wt.get());
         dirs[k]->cd();
         h.emplace(k, static_cast<TH1*>( hist->Clone() ) );
-        // hist->Clone( (alg->name+'_'+wt->name+"__"+name).c_str() )
       }
     }
     delete hist;
@@ -170,6 +168,12 @@ istream& operator>> (istream& is, range<T>& r) {
 // NOTE: Cannot make istream operator for std::pair work with boost::po
 
 // ******************************************************************
+
+inline Double_t tau(Double_t j_pt, Double_t j_mass, Double_t j_eta, Double_t H_eta) {
+  return sqrt( sq(j_pt) + sq(j_mass) )/( 2.*cosh(j_eta - H_eta) );
+}
+
+// ******************************************************************
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
@@ -201,7 +205,7 @@ int main(int argc, char** argv)
        "if skipped, all weights from wt files are used")
       ("pt-cut", po::value<double>(&pt_cut)->default_value(30.),
        "jet pT cut")
-      ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4),
+      ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut")
       ("style,s", po::value<string>(&css_file)->required(),
        "CSS style file for histogram binning and formating")
@@ -437,22 +441,20 @@ int main(int argc, char** argv)
       const vector<TLorentzVector> jets = alg->jetsByPt(pt_cut,eta_cut);
       const size_t njets = jets.size(); // number of jets
 
+      int njets50 = 0;
+      for (auto& j : jets) if (j.Pt()>=50.) ++njets50;
+
+      // Number of jets hists
       h_NJet_excl.Fill(njets);
-      for (unsigned char i=0;i<4;i++)
-        if (njets>=i) h_NJet_incl.Fill(i);
+      h_NJet_excl_50.Fill(njets50);
+      for (unsigned char i=0;i<4;i++) {
+        if (njets  >=i) h_NJet_incl   .Fill(i);
+        if (njets50>=i) h_NJet_incl_50.Fill(i);
+      }
 
       if (njets==0) { // njets == 0;
 
-        h_H_pT_excl     .Fill(H_pt);
-        h_jet1_pT       .Fill(10);
-        // TODO: Why did Brian fill these overflows?
-        // h_j_j_deltay    .FillOverflow();
-        // h_Hjj_pT        .FillOverflow();
-        // h_jet2_y        .FillOverflow();
-        // h_jet2_pT       .FillOverflow();
-
-        h_NJet_incl_50.Fill(0);
-        h_NJet_excl_50.Fill(0);
+        h_H_pT_excl.Fill(H_pt);
 
       }
       else { // njets > 0;
@@ -465,33 +467,18 @@ int main(int argc, char** argv)
 
         const Double_t Hj_pt = (higgs + j1).Pt();
 
-        h_jet1_pT     .Fill(j1_pt);
-        h_jet1_y      .Fill(j1_eta);
-        h_Hj_pT       .Fill(Hj_pt);
-        h_H_j_pT      .Fill(H_pt);
+        h_jet1_pT.Fill(j1_pt);
+        h_jet1_y .Fill(j1_eta);
+        h_Hj_pT  .Fill(Hj_pt);
+        h_H_j_pT .Fill(H_pt);
 
-        h_jet1_tau.Fill(
-          sqrt( sq(j1_pt) + sq(j1_mass) )/( 2.0*cosh(j1_eta - H_eta) )
-        );
-
-        if (j1_pt>50.) {
-          h_NJet_incl_50.Fill(1);
-        } else {
-          h_NJet_incl_50.Fill(0);
-          h_NJet_excl_50.Fill(0);
-        }
+        h_jet1_tau.Fill( tau(j1_pt,j1_mass,j1_eta,H_eta) );
 
         if (njets==1) { // njets == 1;
 
-          h_Hj_pT_excl        .Fill(Hj_pt);
-          h_H_j_pT_excl       .Fill(H_pt);
-          h_jet1_pT_excl      .Fill(j1_pt);
-          h_jet2_pT           .Fill(10);
-          // h_j_j_deltay        .FillOverflow();
-          // h_Hjj_pT            .FillOverflow();
-          // h_jet2_y            .FillOverflow();
-
-          if(j1_pt>50.) h_NJet_excl_50.Fill(1);
+          h_Hj_pT_excl  .Fill(Hj_pt);
+          h_H_j_pT_excl .Fill(H_pt);
+          h_jet1_pT_excl.Fill(j1_pt);
 
         }
         else { // njets > 1;
@@ -532,11 +519,7 @@ int main(int argc, char** argv)
             }
           }
 
-          h_jet2_tau.Fill(
-            sqrt( sq(j2_pt) + sq(j2_mass) )/( 2.0*cosh(j2_eta - H_eta) )
-          );
-
-          if (j2_pt>50.) h_NJet_incl_50.Fill(2);
+          h_jet2_tau.Fill( tau(j2_pt,j2_mass,j2_eta,H_eta) );
 
           if (njets==2) { // njets == 2;
 
@@ -544,9 +527,6 @@ int main(int argc, char** argv)
             h_H_jj_deltaphi_excl .Fill(deltaPhi_H_jj);
             h_Hjj_pT_excl        .Fill(Hjj_pt);
             h_H_jj_pT_excl       .Fill(H_pt);
-            // h_jet3_pT            .Fill(10);
-
-            if (j2_pt>50.) h_NJet_excl_50.Fill(2);
 
           }
           else { // njets > 2;
@@ -556,20 +536,10 @@ int main(int argc, char** argv)
             const Double_t j3_pt   = j3.Pt();
             const Double_t j3_eta  = j3.Rapidity();
 
-            h_jet3_pT     .Fill(j3_pt);
-            h_jet3_y      .Fill(j3_eta);
+            h_jet3_pT.Fill(j3_pt);
+            h_jet3_y .Fill(j3_eta);
 
-            h_jet3_tau.Fill(
-              sqrt( sq(j3_pt) + sq(j3_mass) )/( 2.*cosh(j3_eta - H_eta) )
-            );
-
-            if (j3_pt>50.) h_NJet_incl_50.Fill(3);
-
-            if (njets==3) {
-
-              if (j3_pt>50.) h_NJet_excl_50.Fill(3);
-
-            }
+            h_jet3_tau.Fill( tau(j3_pt,j3_mass,j3_eta,H_eta) );
 
           } // END njets > 2;
 
