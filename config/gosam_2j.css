@@ -1,5 +1,5 @@
 .* {
-  Class: TH1F;
+  Class: TH1D;
   Bins: 100 -500 500;
 }
 

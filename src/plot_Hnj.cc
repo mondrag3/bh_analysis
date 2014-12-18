@@ -55,26 +55,29 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string fin, fout, jet_alg, pdf, part;
+  vector<string> fin;
+  string fout, jet_alg, pdf, part, y_label;
 
   try {
     // General Options ------------------------------------
     po::options_description all_opt("Options");
     all_opt.add_options()
     ("help,h", "produce help message")
-    ("input,i", po::value<string>(&fin)->required(),
+    ("input,i", po::value<vector<string>>(&fin)->required(),
      "input file with histograms")
     ("output,o", po::value<string>(&fout)->required(),
      "output pdf plots")
     ("jet-alg,j", po::value<string>(&jet_alg)->default_value("AntiKt4"),
      "jet algorithm")
     ("pdf", po::value<string>(&pdf),
-     "select PDF set of there are multiple in the file")
+     "select PDF set if there are multiple in the file")
     ("scales", po::value<vector<string>>(&scales)
      ->default_value({"0.25Ht","0.5Ht","1Ht"},"Ht/4, Ht/2, Ht"),
      "fac and ren scales")
-    ("part", po::value<string>(&part),
-     "calculation part; string appended to each title")
+     ("part", po::value<string>(&part),
+      "calculation part; string appended to each title")
+     ("y-label", po::value<string>(&y_label),
+      "Y axis label")
     ;
 
     po::variables_map vm;
@@ -91,16 +94,29 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  TFile *f = new TFile(fin.c_str(),"read");
-  if (f->IsZombie()) exit(1);
+  // TFile *f = new TFile(fin.c_str(),"read");
+  // if (f->IsZombie()) exit(1);
 
   // property map of histograms
   hmap_t hmap;
   hkey_t hkey;
 
   // Get histograms *************************************************
-  {
+  TFile *first_file = nullptr;
+  for (const auto& fname : fin) {
+    static bool first = true;
+
+    TFile *f = new TFile(fname.c_str(),"read");
+    if (f->IsZombie()) exit(1);
+
+    const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
+    const Double_t nN = 1./N;
+
+    cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
+    cout << "\033[36mEvents:\033[0m " << N << endl << endl;
+
     static TKey *key1;
+    static TH1 *h, *_h;
     TIter nextkey1(f->GetListOfKeys());
     while ((key1 = (TKey*)nextkey1())) {
       static TObject *obj1;
@@ -116,9 +132,14 @@ int main(int argc, char** argv)
             static TObject *obj2;
             obj2 = key2->ReadObj();
             if (obj2->InheritsFrom(TH1::Class())) {
-              TH1* h = static_cast<TH1*>(obj2);
+              h = static_cast<TH1*>(obj2);
+              h->Scale(nN);
               hist_key(hkey,h);
-              hmap.insert(hkey,h);
+              if (first) hmap.insert(hkey,h);
+              else {
+                hmap.get(hkey,_h);
+                _h->Add(h);
+              }
             }
           }
         } else if (!jet_alg.compare(d1->GetName())) {
@@ -138,9 +159,14 @@ int main(int argc, char** argv)
                   static TObject *obj3;
                   obj3 = key3->ReadObj();
                   if (obj3->InheritsFrom(TH1::Class())) {
-                    TH1* h = static_cast<TH1*>(obj3);
+                    h = static_cast<TH1*>(obj3);
+                    h->Scale(nN);
                     hist_key(hkey,h);
-                    hmap.insert(hkey,h);
+                    if (first) hmap.insert(hkey,h);
+                    else {
+                      hmap.get(hkey,_h);
+                      _h->Add(h);
+                    }
                   }
                 }
               }
@@ -150,6 +176,9 @@ int main(int argc, char** argv)
         }
       }
     }
+    if (first) first_file = f;
+    else delete f;
+    first = false;
   }
 
   // Make plots *****************************************************
@@ -243,6 +272,11 @@ int main(int argc, char** argv)
       ( part.size() ? (h_cent->GetName()+(' '+part)).c_str()
                     :  h_cent->GetName() )
     );
+    if (y_label.size()) {
+      TAxis *y = g_scales .GetYaxis();
+      y->SetTitle(y_label.c_str());
+      y->SetTitleOffset(1.3);
+    }
     g_scales .SetFillColorAlpha(2,0.5);
     // g_scales .SetLineColor(10);
     // g_scales .SetFillStyle(3004);
@@ -281,7 +315,7 @@ int main(int argc, char** argv)
 
   canv.SaveAs((fout+']').c_str());
 
-  delete f;
+  delete first_file;
 
   return 0;
 }
