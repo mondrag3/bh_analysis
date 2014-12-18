@@ -459,6 +459,26 @@ int main(int argc, char** argv)
       }
       else { // njets > 0;
 
+        Double_t jets_HT = 0;
+        static const Double_t jet_tau_cut=8;
+        Double_t max_tj=0;
+        Double_t sum_tj=0;
+
+        for (auto& jet : jets) {
+          const Double_t jet_pt  = jet.Pt();
+          const Double_t jet_tau = tau(jet_pt,jet.M(),jet.Rapidity(),H_eta);
+
+          jets_HT += jet_pt;
+
+          if ( jet_tau > jet_tau_cut ) {
+            sum_tj += jet_tau;
+            if (jet_tau > max_tj) max_tj = jet_tau;
+          }
+        }
+        h_jets_HT.Fill(jets_HT);
+        h_jets_tau_max.Fill(max_tj);
+        h_jets_tau_sum.Fill(sum_tj);
+
         const TLorentzVector& j1 = jets[0]; // First jet
 
         const Double_t j1_mass = j1.M();
@@ -546,34 +566,6 @@ int main(int argc, char** argv)
         } // END njets > 1;
 
       } // END njets > 0;
-
-      Double_t jets_HT = 0;
-
-      static const Double_t tau_jet_cut=8;
-      Double_t max_tj=0;
-      Double_t sum_tj=0;
-
-      for(size_t i=0;i<njets;i++) {
-        const TLorentzVector& jet = jets[i];
-
-        const Double_t jet_pt   = jet.Pt();
-        const Double_t jet_mass = jet.M();
-        const Double_t jet_eta  = jet.Rapidity();
-
-        jets_HT += jet_pt;
-
-        Double_t tauJet =
-          sqrt( sq(jet_pt) + sq(jet_mass) )/( 2.*cosh(jet_eta - H_eta) );
-
-        if ( tauJet > tau_jet_cut ) {
-          sum_tj += tauJet;
-          if (tauJet > max_tj) max_tj = tauJet;
-        }
-
-      }
-      h_jets_HT.Fill(jets_HT);
-      h_jets_tau_max.Fill(max_tj);
-      h_jets_tau_sum.Fill(sum_tj);
 
     } // END Loop over SpartyJet clustering algorithms
 
