@@ -311,6 +311,13 @@ int main(int argc, char** argv)
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
+    TText cs_lbl(0.73,0.69,Form("Total #sigma = %.2f",h_cent->Integral()));
+    jet_alg_lbl.SetNDC();
+    jet_alg_lbl.SetTextAlign(13);
+    jet_alg_lbl.SetTextFont(42);
+    jet_alg_lbl.SetTextSize(0.035);
+    jet_alg_lbl.Draw();
+
     // leg.Draw();
     canv.SaveAs(fout.c_str());
 
