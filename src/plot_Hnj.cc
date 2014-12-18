@@ -291,9 +291,10 @@ int main(int argc, char** argv)
     g_pdf_unc.SetLineWidth(0);
     g_pdf_unc.Draw("2");
 
+    h_cent->Sumw2(false);
     h_cent->SetLineWidth(2);
     h_cent->SetLineColor(1);
-    h_cent->Draw("same");
+    h_cent->Draw("][same");
     // h_pdf_lo->Draw("same");
     // h_pdf_hi->Draw("same");
 
