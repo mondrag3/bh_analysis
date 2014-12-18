@@ -14,6 +14,7 @@
 #include <TCanvas.h>
 #include <TLegend.h>
 #include <TText.h>
+#include <TLatex.h>
 #include <TAxis.h>
 #include <TGraphAsymmErrors.h>
 
@@ -311,7 +312,7 @@ int main(int argc, char** argv)
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
-    TText cs_lbl(0.73,0.69,Form("Total #sigma = %.2f",h_cent->Integral()));
+    TLatex cs_lbl(0.73,0.69,Form("Total #sigma = %.2f pb",h_cent->Integral()));
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
