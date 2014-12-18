@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   vector<string> fin;
-  string fout, jet_alg, pdf, part, y_label;
+  string fout, jet_alg, pdf, title;
 
   try {
     // General Options ------------------------------------
@@ -74,10 +74,8 @@ int main(int argc, char** argv)
     ("scales", po::value<vector<string>>(&scales)
      ->default_value({"0.25Ht","0.5Ht","1Ht"},"Ht/4, Ht/2, Ht"),
      "fac and ren scales")
-     ("part", po::value<string>(&part),
-      "calculation part; string appended to each title")
-     ("y-label", po::value<string>(&y_label),
-      "Y axis label")
+    ("title", po::value<string>(&title),
+     "string appended to each title")
     ;
 
     po::variables_map vm;
@@ -266,32 +264,34 @@ int main(int argc, char** argv)
                                       0,bins_wdth.data(),
                                       pdf_lo.data(),pdf_hi.data());
 
-    g_scales .GetXaxis()
+    g_scales.GetXaxis()
       ->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
-    g_scales .SetTitle(
-      ( part.size() ? (h_cent->GetName()+(' '+part)).c_str()
-                    :  h_cent->GetName() )
+    g_scales.SetTitle(
+      ( title.size() ? (h_cent->GetName()+(' '+title)).c_str()
+                     :  h_cent->GetName() )
     );
-    if (y_label.size()) {
-      TAxis *y = g_scales .GetYaxis();
-      y->SetTitle(y_label.c_str());
-      y->SetTitleOffset(1.3);
-    }
-    g_scales .SetFillColorAlpha(2,0.5);
+    g_scales.GetXaxis()->SetTitle("GeV");
+    TAxis *ya = g_scales.GetYaxis();
+    ya->SetTitle("#sigma, pb");
+    ya->SetTitleOffset(1.3);
+
+    g_scales.SetFillColorAlpha(2,0.5);
     // g_scales .SetLineColor(10);
     // g_scales .SetFillStyle(3004);
-    g_scales .SetLineWidth(0);
+    g_scales.SetLineWidth(0);
     // g_scales .SetMarkerColor(4);
     // g_scales .SetMarkerStyle(21);
-    g_scales .Draw("a2");
+    g_scales.Draw("a2");
+
     g_pdf_unc.SetFillColorAlpha(4,0.5);
     // g_pdf_unc.SetLineColor(10);
     // g_pdf_unc.SetFillStyle(3005);
     g_pdf_unc.SetLineWidth(0);
     g_pdf_unc.Draw("2");
-    h_cent  ->SetLineWidth(2);
-    h_cent  ->SetLineColor(1);
-    h_cent  ->Draw("same");
+
+    h_cent->SetLineWidth(2);
+    h_cent->SetLineColor(1);
+    h_cent->Draw("same");
     // h_pdf_lo->Draw("same");
     // h_pdf_hi->Draw("same");
 
