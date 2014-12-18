@@ -442,7 +442,10 @@ int main(int argc, char** argv)
       const size_t njets = jets.size(); // number of jets
 
       int njets50 = 0;
-      for (auto& j : jets) if (j.Pt()>=50.) ++njets50;
+      for (auto& j : jets) {
+        if (j.Pt()>=50.) ++njets50;
+        else break;
+      }
 
       // Number of jets hists
       h_NJet_excl.Fill(njets);
