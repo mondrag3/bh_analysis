@@ -243,9 +243,9 @@ int main(int argc, char** argv)
     for (size_t i=0;i<nbins;++i) {
       bins_edge[i] = h_cent->GetBinLowEdge(i+1);
       bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
-      cent  [i]    = h_cent->GetBinContent(i+1)/bins_wdth[i];
-      pdf_lo[i]    = (cent[i] - h_pdf_lo->GetBinContent(i+1))/bins_wdth[i];
-      pdf_hi[i]    = (h_pdf_hi->GetBinContent(i+1) - cent[i])/bins_wdth[i];
+      cent  [i]    = h_cent->GetBinContent(i+1);// /bins_wdth[i];
+      pdf_lo[i]    = (cent[i] - h_pdf_lo->GetBinContent(i+1));// /bins_wdth[i];
+      pdf_hi[i]    = (h_pdf_hi->GetBinContent(i+1) - cent[i]);// /bins_wdth[i];
       for (TH1 *hs : h_scales) {
         Double_t x = hs->GetBinContent(i+1) - cent[i];
         if (x>0.) {
@@ -255,8 +255,8 @@ int main(int argc, char** argv)
           if (scales_lo[i]<x) scales_lo[i] = x;
         }
       }
-      scales_hi[i] /= bins_wdth[i];
-      scales_lo[i] /= bins_wdth[i];
+      // scales_hi[i] /= bins_wdth[i];
+      // scales_lo[i] /= bins_wdth[i];
     }
 
     TGraphAsymmErrors g_scales (nbins,bins_edge.data(),cent.data(),
