@@ -264,6 +264,7 @@ int main(int argc, char** argv)
       for (size_t i=0;i<nbins;++i) {
         width = bins_wdth[i];
         cent     [i] /= width;
+        h_cent->SetBinContent(i+1,cent[i]);
         pdf_lo   [i] /= width;
         pdf_hi   [i] /= width;
         scales_hi[i] /= width;
