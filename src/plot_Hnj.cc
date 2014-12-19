@@ -396,7 +396,7 @@ int main(int argc, char** argv)
       if (sigma_u/sigma > of_lim) {
         stringstream ss;
         ss << setprecision(2) << 100.*sigma_u/sigma << "% underflow";
-           cout << "\033[33m" << ss.str() << "\033[0m" << endl;
+        cout << "\033[33m" << ss.str() << "\033[0m" << endl;
         TText *u_lbl = new TText(0.3,0.45,ss.str().c_str());
         u_lbl->SetNDC();
         u_lbl->SetTextAlign(13);
