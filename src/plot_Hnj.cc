@@ -53,6 +53,29 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
   } else return false;
 }
 
+string sigma_prt(Double_t sigma, unsigned prec) {
+  stringstream ss;
+  ss << setprecision(prec) << sigma;
+  string s; ss >> s;
+  size_t n;
+  if (sigma<1.) {
+    n = s.find_first_not_of("0.");
+    if (n!=string::npos) n = prec - (s.size() - n);
+    else n = 0;
+  } else {
+    n = s.size();
+    bool p = (s.find('.')!=string::npos);
+    if (p) --n;
+    if (n<prec) {
+      if (!p) s += '.';
+      n = prec - n;
+    } else n = 0;
+  }
+  for (size_t i=0;i<n;++i) s += '0';
+
+  return "#sigma = " + s + " pb";
+}
+
 // ******************************************************************
 int main(int argc, char** argv)
 {
@@ -351,12 +374,7 @@ int main(int argc, char** argv)
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
-    static const auto sigma_prt = [](Double_t sigma) -> string {
-      stringstream ss;
-      ss << "#sigma = " << setprecision(3) << sigma << " pb";
-      return ss.str();
-    };
-    TLatex cs_lbl(0.73,0.69, sigma_prt(sigma).c_str());
+    TLatex cs_lbl(0.73,0.69, sigma_prt(sigma,3).c_str());
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
