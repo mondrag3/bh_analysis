@@ -258,8 +258,17 @@ int main(int argc, char** argv)
       }
     }
 
-    const bool is_pT = (hname->str().find("pT") != string::npos);
-    if (is_pT) {
+    const Double_t sigma = h_cent->Integral();
+
+    const bool is_pT   = (hname->str().find("_pT") != string::npos);
+    const bool is_mass = (hname->str().find("_mass") != string::npos);
+    const bool is_eta  = (hname->str().find("_deltay") != string::npos) ||
+                         (hname->str().find("_y") != string::npos);
+    const bool is_phi  = (hname->str().find("_deltaphi") != string::npos) ||
+                         (hname->str().find("_phi") != string::npos);
+    const bool is_tau  = (hname->str().find("_tau") != string::npos);
+
+    if (is_pT||is_mass||is_eta||is_phi||is_tau) {
       Float_t width;
       for (size_t i=0;i<nbins;++i) {
         width = bins_wdth[i];
@@ -285,11 +294,24 @@ int main(int argc, char** argv)
       ( title.size() ? (h_cent->GetName()+(' '+title)).c_str()
                      :  h_cent->GetName() )
     );
+    TAxis *xa = g_scales.GetXaxis();
     TAxis *ya = g_scales.GetYaxis();
     ya->SetTitleOffset(1.3);
     if (is_pT) {
-      g_scales.GetXaxis()->SetTitle("pT, GeV");
+      xa->SetTitle("pT, GeV");
       ya->SetTitle("d#sigma/dp_{T}, pb/GeV");
+    } else if (is_mass) {
+      xa->SetTitle("m, GeV");
+      ya->SetTitle("d#sigma/dm, pb/GeV");
+    } else if (is_eta) {
+      xa->SetTitle("#eta");
+      ya->SetTitle("d#sigma/d#eta, pb");
+    } else if (is_phi) {
+      xa->SetTitle("#phi, rad");
+      ya->SetTitle("d#sigma/d#phi, pb/rad");
+    } else if (is_tau) {
+      xa->SetTitle("#tau");
+      ya->SetTitle("d#sigma/d#tau, pb/[#tau]");
     } else {
       ya->SetTitle("#sigma, pb");
     }
@@ -328,7 +350,7 @@ int main(int argc, char** argv)
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
-    TLatex cs_lbl(0.73,0.69,Form("Total #sigma = %.2f pb",h_cent->Integral()));
+    TLatex cs_lbl(0.73,0.69,Form("#sigma = %.2f pb",sigma));
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
