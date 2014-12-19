@@ -244,9 +244,9 @@ int main(int argc, char** argv)
     for (size_t i=0;i<nbins;++i) {
       bins_edge[i] = h_cent->GetBinLowEdge(i+1);
       bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
-      cent  [i]    = h_cent->GetBinContent(i+1);// /bins_wdth[i];
-      pdf_lo[i]    = (cent[i] - h_pdf_lo->GetBinContent(i+1));// /bins_wdth[i];
-      pdf_hi[i]    = (h_pdf_hi->GetBinContent(i+1) - cent[i]);// /bins_wdth[i];
+      cent  [i]    = h_cent->GetBinContent(i+1);
+      pdf_lo[i]    = (cent[i] - h_pdf_lo->GetBinContent(i+1));
+      pdf_hi[i]    = (h_pdf_hi->GetBinContent(i+1) - cent[i]);
       for (TH1 *hs : h_scales) {
         Double_t x = hs->GetBinContent(i+1) - cent[i];
         if (x>0.) {
@@ -256,8 +256,19 @@ int main(int argc, char** argv)
           if (scales_lo[i]<x) scales_lo[i] = x;
         }
       }
-      // scales_hi[i] /= bins_wdth[i];
-      // scales_lo[i] /= bins_wdth[i];
+    }
+
+    const bool is_pT = (hname->str().find("pT") != string::npos);
+    if (is_pT) {
+      Float_t width;
+      for (size_t i=0;i<nbins;++i) {
+        width = bins_wdth[i];
+        cent     [i] /= width;
+        pdf_lo   [i] /= width;
+        pdf_hi   [i] /= width;
+        scales_hi[i] /= width;
+        scales_lo[i] /= width;
+      }
     }
 
     TGraphAsymmErrors g_scales (nbins,bins_edge.data(),cent.data(),
@@ -273,10 +284,14 @@ int main(int argc, char** argv)
       ( title.size() ? (h_cent->GetName()+(' '+title)).c_str()
                      :  h_cent->GetName() )
     );
-    //g_scales.GetXaxis()->SetTitle("GeV");
     TAxis *ya = g_scales.GetYaxis();
-    ya->SetTitle("d#sigma, pb");
     ya->SetTitleOffset(1.3);
+    if (is_pT) {
+      g_scales.GetXaxis()->SetTitle("pT, GeV");
+      ya->SetTitle("d#sigma/dp_{T}, pb/GeV");
+    } else {
+      ya->SetTitle("#sigma, pb");
+    }
 
     g_scales.SetFillColorAlpha(2,0.5);
     // g_scales .SetLineColor(10);
