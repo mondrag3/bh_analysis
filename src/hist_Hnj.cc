@@ -91,6 +91,7 @@ class hist_wt: public hist {
 public:
   hist_wt(const string& name) {
     TH1* hist = css->mkhist(name);
+    hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& wt : weight::all) {
       const weight *w = wt.get();
       dirs[w]->cd();
@@ -113,6 +114,7 @@ class hist_alg_wt: public hist {
 public:
   hist_alg_wt(const string& name) {
     TH1* hist = css->mkhist(name);
+    hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& alg : SJClusterAlg::all) {
       for (auto& wt : weight::all) {
         const auto k = make_pair(alg.get(),wt.get());
