@@ -82,6 +82,8 @@ int main(int argc, char** argv)
   // START OPTIONS **************************************************
   vector<string> fin;
   string fout, jet_alg, pdf, title;
+  float of_lim;
+  bool  of_draw = false;
 
   try {
     // General Options ------------------------------------
@@ -101,6 +103,8 @@ int main(int argc, char** argv)
      "fac and ren scales")
     ("title", po::value<string>(&title),
      "string appended to each title")
+    ("overflow", po::value<float>(&of_lim),
+     "print under- and overflow messages on histograms above the limit")
     ;
 
     po::variables_map vm;
@@ -110,6 +114,7 @@ int main(int argc, char** argv)
       return 0;
     }
     po::notify(vm);
+    if (vm.count("overflow")) of_draw = true;
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
@@ -282,9 +287,12 @@ int main(int argc, char** argv)
       }
     }
 
-    const Double_t sigma = h_cent->Integral();
+    const Double_t sigma   = h_cent->Integral(0,nbins+1);
+    const Double_t sigma_u = h_cent->GetBinContent(0);
+    const Double_t sigma_o = h_cent->GetBinContent(nbins+1);
 
     const bool is_pT   = (hname->str().find("_pT") != string::npos);
+    const bool is_HT   = (hname->str().find("_HT") != string::npos);
     const bool is_mass = (hname->str().find("_mass") != string::npos);
     const bool is_eta  = (hname->str().find("_deltay") != string::npos) ||
                          (hname->str().find("_y") != string::npos);
@@ -292,7 +300,7 @@ int main(int argc, char** argv)
                          (hname->str().find("_phi") != string::npos);
     const bool is_tau  = (hname->str().find("_tau") != string::npos);
 
-    if (is_pT||is_mass||is_eta||is_phi||is_tau) {
+    if (is_pT||is_HT||is_mass||is_eta||is_phi||is_tau) {
       Float_t width;
       for (size_t i=0;i<nbins;++i) {
         width = bins_wdth[i];
@@ -324,6 +332,9 @@ int main(int argc, char** argv)
     if (is_pT) {
       xa->SetTitle("pT, GeV");
       ya->SetTitle("d#sigma/dp_{T}, pb/GeV");
+    } else if (is_HT) {
+      xa->SetTitle("HT, GeV");
+      ya->SetTitle("d#sigma/dHT, pb/GeV");
     } else if (is_mass) {
       xa->SetTitle("m, GeV");
       ya->SetTitle("d#sigma/dm, pb/GeV");
@@ -380,6 +391,31 @@ int main(int argc, char** argv)
     cs_lbl.SetTextFont(42);
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
+
+    if (of_draw) {
+      if (sigma_u/sigma > of_lim) {
+        stringstream ss;
+        ss << setprecision(2) << 100.*sigma_u/sigma << "% underflow";
+           cout << "\033[33m" << ss.str() << "\033[0m" << endl;
+        TText *u_lbl = new TText(0.3,0.45,ss.str().c_str());
+        u_lbl->SetNDC();
+        u_lbl->SetTextAlign(13);
+        u_lbl->SetTextColor(2);
+        u_lbl->SetTextSize(0.1);
+        u_lbl->Draw();
+      }
+      if (sigma_o/sigma > of_lim) {
+        stringstream ss;
+        ss << setprecision(2) << 100.*sigma_o/sigma << "% overflow";
+        cout << "\033[33m" << ss.str() << "\033[0m" << endl;
+        TText *o_lbl = new TText(0.3,0.55,ss.str().c_str());
+        o_lbl->SetNDC();
+        o_lbl->SetTextAlign(13);
+        o_lbl->SetTextColor(2);
+        o_lbl->SetTextSize(0.1);
+        o_lbl->Draw();
+      }
+    }
 
     // leg.Draw();
     canv.SaveAs(fout.c_str());
