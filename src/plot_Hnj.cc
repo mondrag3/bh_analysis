@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <sstream>
 #include <algorithm>
 #include <stdexcept>
 
@@ -350,7 +351,12 @@ int main(int argc, char** argv)
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
-    TLatex cs_lbl(0.73,0.69,Form("#sigma = %.2f pb",sigma));
+    static const auto sigma_prt = [](Double_t sigma) -> string {
+      stringstream ss;
+      ss << "#sigma = " << setprecision(3) << sigma << " pb";
+      return ss.str();
+    };
+    TLatex cs_lbl(0.73,0.69, sigma_prt(sigma).c_str());
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
