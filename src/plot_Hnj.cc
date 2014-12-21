@@ -54,6 +54,7 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
 }
 
 string sigma_prt(Double_t sigma, unsigned prec) {
+/*
   stringstream ss;
   ss << setprecision(prec) << sigma;
   string s; ss >> s;
@@ -74,6 +75,10 @@ string sigma_prt(Double_t sigma, unsigned prec) {
   for (size_t i=0;i<n;++i) s += '0';
 
   return "#sigma = " + s + " pb";
+*/
+  stringstream ss;
+  ss << "#sigma = " << setprecision(prec) << sigma << " pb";
+  return ss.str();
 }
 
 // ******************************************************************
@@ -287,18 +292,21 @@ int main(int argc, char** argv)
       }
     }
 
-    const Double_t sigma   = h_cent->Integral(0,nbins+1);
+    const string _hname( hname->str() );
+
+    const Double_t sigma   = ( _hname.find("NJet_incl") == string::npos
+                               ? h_cent->Integral(0,nbins+1) : h_cent->GetBinContent(1) );
     const Double_t sigma_u = h_cent->GetBinContent(0);
     const Double_t sigma_o = h_cent->GetBinContent(nbins+1);
 
-    const bool is_pT   = (hname->str().find("_pT") != string::npos);
-    const bool is_HT   = (hname->str().find("_HT") != string::npos);
-    const bool is_mass = (hname->str().find("_mass") != string::npos);
-    const bool is_eta  = (hname->str().find("_deltay") != string::npos) ||
-                         (hname->str().find("_y") != string::npos);
-    const bool is_phi  = (hname->str().find("_deltaphi") != string::npos) ||
-                         (hname->str().find("_phi") != string::npos);
-    const bool is_tau  = (hname->str().find("_tau") != string::npos);
+    const bool is_pT   = (_hname.find("_pT")       != string::npos);
+    const bool is_HT   = (_hname.find("_HT")       != string::npos);
+    const bool is_mass = (_hname.find("_mass")     != string::npos);
+    const bool is_eta  = (_hname.find("_deltay")   != string::npos) ||
+                         (_hname.find("_y")        != string::npos);
+    const bool is_phi  = (_hname.find("_deltaphi") != string::npos) ||
+                         (_hname.find("_phi")      != string::npos);
+    const bool is_tau  = (_hname.find("_tau")      != string::npos);
 
     if (is_pT||is_HT||is_mass||is_eta||is_phi||is_tau) {
       Float_t width;
