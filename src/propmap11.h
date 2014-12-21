@@ -163,12 +163,10 @@ public:
   }
 
   bool get(const Key& key, T& x) noexcept {
-    if ( _map.count(key)==0 ) {
-      return false;
-    } else {
-      x = _map[key];
-      return true;
-    }
+    try return _map.at(key);
+    catch (std::out_of_range& e) throw std::out_of_range(
+      std::string("In ") + __PRETTY_FUNCTION__ + ": " + e.what()
+    );
   }
 
   template<size_t i> inline const Set& pset() noexcept {

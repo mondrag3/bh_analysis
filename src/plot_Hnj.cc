@@ -29,7 +29,15 @@ namespace po = boost::program_options;
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 // ******************************************************************
-typedef propmap<TH1*,5> hmap_t;
+struct hist_acc {
+  TH1 *h, *_h;
+  static Double_t N_cur;
+  static Double_t N_total;
+};
+Double_t hist_acc::N_cur   = 0.;
+Double_t hist_acc::N_total = 0.;
+
+typedef propmap<hist_acc,5> hmap_t;
 typedef hmap_t::Key hkey_t;
 
 vector<string> scales;
@@ -137,7 +145,7 @@ int main(int argc, char** argv)
   TFile *first_file = nullptr;
   for (const auto& ftype : fin.labels()) {
 
-    Double_t total_N = 0.;
+    hist_acc::N_cur = 0.;
 
     for (const auto& fname : fin.values(ftype)) {
       static bool first = true;
@@ -149,7 +157,7 @@ int main(int argc, char** argv)
       if (f->IsZombie()) exit(1);
 
       const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
-      total_N += N;
+      hist_acc::N_cur += N;
 
       cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
       cout << "\033[36mEvents:\033[0m " << N << endl << endl;
@@ -186,6 +194,8 @@ int main(int argc, char** argv)
       else delete f;
       first = false;
     }
+    hist_acc::N_total += hist_acc::N_cur;
+
 
 
   }
