@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include <boost/program_options.hpp>
+// #include <boost/program_options.hpp>
 
 #include <TFile.h>
 #include <TDirectory.h>
@@ -13,7 +13,6 @@
 #include <TH1.h>
 
 using namespace std;
-namespace po = boost::program_options;
 
 #define test(var) \
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -36,7 +35,7 @@ struct hist_tree {
 } htree;
 
 bool same_part = false;
-Double_t N = 0.;
+Double_t N = 0., Ntotal = 0.;
 
 void merge_first(TDirectory *from, TDirectory *to, hist_tree& t=htree) {
   to->cd();
@@ -77,41 +76,50 @@ void scale_all(const hist_tree& t=htree) {
   for (auto& _t : t.t) scale_all(_t);
 }
 
+void usage() {
+  cout << "merge_hists -s [-o ARG] ARGS\n\n"
+          "Options:\n"
+          "  -s        true : add, then scale\n"
+          "            false: scale, then add\n"
+          "  -o arg    output root file\n"
+          "  free arg  input root file\n" << endl;
+  exit(1);
+}
+
 // ******************************************************************
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
   // START OPTIONS **************************************************
   vector<string> fin_name;
   string fout_name;
 
-  try {
-    // General Options ------------------------------------
-    po::options_description desc("Options");
-    desc.add_options()
-    ("help,h", "produce help message")
-    ("input,i", po::value<vector<string>>(&fin_name)->required()->multitoken(),
-     "input file with histograms")
-    ("output,o", po::value<string>(&fout_name)->required(),
-     "output pdf plots")
-    ("same-part,s", po::bool_switch(&same_part),
-     "true : add, then scale\nfalse: scale, then add")
-    ;
-    po::positional_options_description desc_pos;
-    desc_pos.add("input", -1);
-
-    po::variables_map vm;
-    po::store(po::command_line_parser(argc, argv).options(desc)
-              .positional(desc_pos).run(), vm);
-
-    if (argc == 1 || vm.count("help")) {
-      cout << desc << endl;
-      return 0;
+  if (argc<4) usage();
+  for (int i=1;i<argc;++i) {
+    const char* arg = argv[i];
+    static char flag = 0;
+    static bool had_o = false;
+    if (flag==0) {
+      if (!strcmp(arg,"-s")) same_part = true;
+      else if (!strcmp(arg,"-o")) {
+        if (had_o) {
+          cerr << "Second -o option" << endl;
+          exit(1);
+        } else flag = 'o';
+      } if (arg[0]=='-') {
+        cerr << "Unknown option " << arg << endl;
+        exit(1);
+      } else fin_name.emplace_back(arg);
+    } else {
+      if (flag=='o') {
+        if (arg[0]=='-') {
+          cerr << "No value given for option -o " << arg << endl;
+          exit(1);
+        } else {
+          fout_name = arg;
+          flag = 0;
+        }
+      }
     }
-    po::notify(vm);
-  }
-  catch(exception& e) {
-    cerr << "\033[31mError: " << e.what() <<"\033[0m"<< endl;
-    exit(1);
   }
 
   if ( find(fin_name.begin(),fin_name.end(),fout_name) != fin_name.end() ) {
@@ -132,8 +140,12 @@ int main(int argc, char** argv)
     if (fin->IsZombie()) exit(1);
     cout << "Input file: " << fin->GetName() << endl;
 
-    if (same_part) N += get_obj<TH1>(fin,"N")->GetBinContent(1);
-    else N = get_obj<TH1>(fin,"N")->GetBinContent(1);
+    Double_t _N = get_obj<TH1>(fin,"N")->GetBinContent(1);
+    cout << "N Events: " << _N << endl;
+
+    if (same_part) N += _N;
+    else N = _N;
+    Ntotal += _N;
 
     if (first) merge_first(fin,fout);
     else merge(fin);
@@ -142,6 +154,7 @@ int main(int argc, char** argv)
   }
 
   if (same_part) scale_all();
+  get_obj<TH1>(fout,"N")->SetBinContent(1,Ntotal);
 
   fout->Write();
   cout << "Wrote " << fout->GetName() << endl;
