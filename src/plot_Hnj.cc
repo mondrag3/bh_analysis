@@ -74,30 +74,9 @@ void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey, bool first) {
 }
 
 string sigma_prt(Double_t sigma, unsigned prec) {
-/*
   stringstream ss;
-  ss << setprecision(prec) << sigma;
-  string s; ss >> s;
-  size_t n;
-  if (sigma<1.) {
-    n = s.find_first_not_of("0.");
-    if (n!=string::npos) n = prec - (s.size() - n);
-    else n = 0;
-  } else {
-    n = s.size();
-    bool p = (s.find('.')!=string::npos);
-    if (p) --n;
-    if (n<prec) {
-      if (!p) s += '.';
-      n = prec - n;
-    } else n = 0;
-  }
-  for (size_t i=0;i<n;++i) s += '0';
-
-  return "#sigma = " + s + " pb";
-*/
-  stringstream ss;
-  ss << "#sigma = " << setprecision(prec) << sigma << " pb";
+  ss << "#sigma = " << showpoint << setprecision(prec) << sigma
+     << noshowpoint << " pb";
   return ss.str();
 }
 
@@ -277,14 +256,13 @@ int main(int argc, char** argv)
         }
       }
 
-      bins_edge[i] /= total_N;
-      bins_wdth[i] /= total_N;
       cent     [i] /= total_N;
       scales_lo[i] /= total_N;
       scales_hi[i] /= total_N;
       pdf_lo   [i] /= total_N;
       pdf_hi   [i] /= total_N;
     }
+    h_cent->Scale(1./total_N);
 
     const string _hname( hname->str() );
 
@@ -394,6 +372,13 @@ int main(int argc, char** argv)
     cs_lbl.SetTextFont(42);
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
+
+    // TLatex N_lbl(0.73,0.69, [](){}().c_str());
+    // N_lbl.SetNDC();
+    // N_lbl.SetTextAlign(13);
+    // N_lbl.SetTextFont(42);
+    // N_lbl.SetTextSize(0.035);
+    // N_lbl.Draw();
 
     if (of_draw) {
       if (sigma_u/sigma > of_lim) {
