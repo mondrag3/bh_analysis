@@ -20,6 +20,7 @@
 #include <TGraphAsymmErrors.h>
 
 #include "propmap11.h"
+#include "labeled.h"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -84,7 +85,7 @@ string sigma_prt(Double_t sigma, unsigned prec) {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  vector<string> fin;
+  vector<string> fin_vec;
   string fout, jet_alg, pdf, title;
   float of_lim;
   bool  of_draw = false;
@@ -94,7 +95,7 @@ int main(int argc, char** argv)
     po::options_description all_opt("Options");
     all_opt.add_options()
     ("help,h", "produce help message")
-    ("input,i", po::value<vector<string>>(&fin)->required(),
+    ("input,i", po::value<vector<string>>(&fin_vec)->required()->multitoken(),
      "input file with histograms")
     ("output,o", po::value<string>(&fout)->required(),
      "output pdf plots")
@@ -126,58 +127,69 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
+  labeled<string> fin(fin_vec);
+
   // property map of histograms
   hmap_t hmap;
   hkey_t hkey;
 
-  Double_t total_N = 0.;
-
   // Get histograms *************************************************
   TFile *first_file = nullptr;
-  for (const auto& fname : fin) {
-    static bool first = true;
+  for (const auto& ftype : fin.labels()) {
 
-    TFile *f = new TFile(fname.c_str(),"read");
-    if (f->IsZombie()) exit(1);
+    Double_t total_N = 0.;
 
-    const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
-    total_N += N;
+    for (const auto& fname : fin.values(ftype)) {
+      static bool first = true;
 
-    cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
-    cout << "\033[36mEvents:\033[0m " << N << endl << endl;
+      cout <<'\"'<< ftype <<"\" : \""<< fname <<'\"'<< endl;
+      continue;
 
-    static TKey *key1;
-    TIter nextkey1(f->GetListOfKeys());
-    while ((key1 = (TKey*)nextkey1())) {
-      static TObject *obj1;
-      obj1 = key1->ReadObj();
-      if (obj1->InheritsFrom(TDirectory::Class())) {
+      TFile *f = new TFile(fname.c_str(),"read");
+      if (f->IsZombie()) exit(1);
 
-        const TDirectory *d1 = static_cast<TDirectory*>(obj1);
+      const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
+      total_N += N;
 
-        if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey,first);
+      cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
+      cout << "\033[36mEvents:\033[0m " << N << endl << endl;
 
-        else if (!jet_alg.compare(d1->GetName())) {
-          static TKey *key2;
-          TIter nextkey2(d1->GetListOfKeys());
-          while ((key2 = (TKey*)nextkey2())) {
-            static TObject *obj2;
-            obj2 = key2->ReadObj();
-            if (obj2->InheritsFrom(TDirectory::Class())) {
+      static TKey *key1;
+      TIter nextkey1(f->GetListOfKeys());
+      while ((key1 = (TKey*)nextkey1())) {
+        static TObject *obj1;
+        obj1 = key1->ReadObj();
+        if (obj1->InheritsFrom(TDirectory::Class())) {
 
-              const TDirectory *d2 = static_cast<TDirectory*>(obj2);
+          const TDirectory *d1 = static_cast<TDirectory*>(obj1);
 
-              if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey,first);
+          if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey,first);
 
+          else if (!jet_alg.compare(d1->GetName())) {
+            static TKey *key2;
+            TIter nextkey2(d1->GetListOfKeys());
+            while ((key2 = (TKey*)nextkey2())) {
+              static TObject *obj2;
+              obj2 = key2->ReadObj();
+              if (obj2->InheritsFrom(TDirectory::Class())) {
+
+                const TDirectory *d2 = static_cast<TDirectory*>(obj2);
+
+                if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey,first);
+
+              }
             }
           }
         }
       }
+      if (first) first_file = f;
+      else delete f;
+      first = false;
     }
-    if (first) first_file = f;
-    else delete f;
-    first = false;
+
+
   }
+  exit(0);
 
   // Make plots *****************************************************
   if (pdf.size()) {

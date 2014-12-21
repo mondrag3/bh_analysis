@@ -79,7 +79,7 @@ lib/rew_calc.o     : src/BHEvent.h
 lib/test_rew_calc.o: src/rew_calc.h src/BHEvent.h
 lib/reweigh.o      : src/rew_calc.h src/BHEvent.h src/timed_counter.h
 lib/hist_H2j.o     : src/BHEvent.h src/SJClusterAlg.h src/finder.h src/timed_counter.h
-lib/plot_Hnj.o     : src/propmap11.h
+lib/plot_Hnj.o     : src/propmap11.h src/labeled.h
 
 # EXE dependencies
 bin/test_rew_calc  : lib/rew_calc.o lib/BHEvent.o
