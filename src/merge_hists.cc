@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
           cerr << "Second -o option" << endl;
           exit(1);
         } else flag = 'o';
-      } if (arg[0]=='-') {
+      } else if (arg[0]=='-') {
         cerr << "Unknown option " << arg << endl;
         exit(1);
       } else fin_name.emplace_back(arg);
