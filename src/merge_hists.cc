@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
   }
 
   if (same_part) scale_all();
+  else get_obj<TH1>(fout,"pid")->Scale(1./fin_name.size());
   get_obj<TH1>(fout,"N")->SetBinContent(1,Ntotal);
 
   fout->Write();
