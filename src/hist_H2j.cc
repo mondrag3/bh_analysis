@@ -199,9 +199,9 @@ int main(int argc, char** argv)
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
-      ("jet-alg,j", po::value<vector<string>>(&jet_algs),
-       "jet algorithms from SJ file, e.g. AntiKt4; "
-       "if skipped, all algorithms from sj files are used")
+      ("jet-alg,j", po::value<vector<string>>(&jet_algs)
+       ->default_value({"AntiKt4"},"AntiKt4"),
+       "jet algorithms from SJ file")
       ("weight,w", po::value<vector<string>>(&weights),
        "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
        "if skipped, all weights from wt files are used")
@@ -209,7 +209,8 @@ int main(int argc, char** argv)
        "jet pT cut")
       ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut")
-      ("style,s", po::value<string>(&css_file)->required(),
+      ("style,s", po::value<string>(&css_file)
+       ->default_value(CONFDIR"/H2j.css","H2j.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value< range<Long64_t> >(&num_events),
        "process only this many events, num or first:num")

@@ -37,7 +37,7 @@ void hist_key(hkey_t& hkey, TH1* h) noexcept {
   hkey[0] = new prop<string>(h->GetName());
 }
 
-bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
+bool dir_key(hkey_t& hkey, const TDirectory* d) noexcept {
   static const boost::regex regex("Fac(.*)_Ren(.*)_PDF(.*)_(.*)");
   static boost::smatch result;
   if ( boost::regex_search(string(d->GetName()), result, regex) ) {
@@ -53,7 +53,7 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
   } else return false;
 }
 
-void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey) {
+void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey, bool first) {
   static TKey *key;
   TIter nextkey(d->GetListOfKeys());
   while ((key = (TKey*)nextkey())) {
@@ -147,9 +147,6 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  // TFile *f = new TFile(fin.c_str(),"read");
-  // if (f->IsZombie()) exit(1);
-
   // property map of histograms
   hmap_t hmap;
   hkey_t hkey;
@@ -171,7 +168,6 @@ int main(int argc, char** argv)
     cout << "\033[36mEvents:\033[0m " << N << endl << endl;
 
     static TKey *key1;
-    static TH1 *h, *_h;
     TIter nextkey1(f->GetListOfKeys());
     while ((key1 = (TKey*)nextkey1())) {
       static TObject *obj1;
@@ -180,7 +176,7 @@ int main(int argc, char** argv)
 
         const TDirectory *d1 = static_cast<TDirectory*>(obj1);
 
-        if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey);
+        if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey,first);
 
         else if (!jet_alg.compare(d1->GetName())) {
           static TKey *key2;
@@ -192,7 +188,7 @@ int main(int argc, char** argv)
 
               const TDirectory *d2 = static_cast<TDirectory*>(obj2);
 
-              if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey);
+              if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey,first);
 
             }
           }
@@ -293,7 +289,8 @@ int main(int argc, char** argv)
     const string _hname( hname->str() );
 
     const Double_t sigma   = ( _hname.find("NJet_incl") == string::npos
-                               ? h_cent->Integral(0,nbins+1) : h_cent->GetBinContent(1) );
+                               ? h_cent->Integral(0,nbins+1)
+                               : h_cent->GetBinContent(1) );
     const Double_t sigma_u = h_cent->GetBinContent(0);
     const Double_t sigma_o = h_cent->GetBinContent(nbins+1);
 
@@ -351,8 +348,8 @@ int main(int argc, char** argv)
       xa->SetTitle("#phi, rad");
       ya->SetTitle("d#sigma/d#phi, pb/rad");
     } else if (is_tau) {
-      xa->SetTitle("#tau");
-      ya->SetTitle("d#sigma/d#tau, pb/[#tau]");
+      xa->SetTitle("#tau, GeV");
+      ya->SetTitle("d#sigma/d#tau, pb/GeV");
     } else {
       ya->SetTitle("#sigma, pb");
     }
@@ -423,7 +420,6 @@ int main(int argc, char** argv)
       }
     }
 
-    // leg.Draw();
     canv.SaveAs(fout.c_str());
 
   }
