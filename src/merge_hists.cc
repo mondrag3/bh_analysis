@@ -121,7 +121,7 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  TFile *fout = new TFile(fout_name.c_str(),"read");
+  TFile *fout = new TFile(fout_name.c_str(),"recreate");
   if (fout->IsZombie()) exit(1);
   cout << "Output file: " << fout->GetName() << endl;
 
