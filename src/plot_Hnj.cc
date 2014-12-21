@@ -53,6 +53,26 @@ bool dir_key(hkey_t& hkey, TDirectory* d) noexcept {
   } else return false;
 }
 
+void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey) {
+  static TKey *key;
+  TIter nextkey(d->GetListOfKeys());
+  while ((key = (TKey*)nextkey())) {
+    static TObject *obj;
+    obj = key->ReadObj();
+    if (obj->InheritsFrom(TH1::Class())) {
+      static TH1* h;
+      h = static_cast<TH1*>(obj);
+      hist_key(hkey,h);
+      if (first) hmap.insert(hkey,h);
+      else {
+        static TH1* _h;
+        hmap.get(hkey,_h);
+        _h->Add(h);
+      }
+    }
+  }
+}
+
 string sigma_prt(Double_t sigma, unsigned prec) {
   stringstream ss;
   ss << setprecision(prec) << sigma;
@@ -129,6 +149,8 @@ int main(int argc, char** argv)
   hmap_t hmap;
   hkey_t hkey;
 
+  Double_t total_N = 0.;
+
   // Get histograms *************************************************
   TFile *first_file = nullptr;
   for (const auto& fname : fin) {
@@ -138,7 +160,7 @@ int main(int argc, char** argv)
     if (f->IsZombie()) exit(1);
 
     const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
-    const Double_t nN = 1./N;
+    total_N += N;
 
     cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
     cout << "\033[36mEvents:\033[0m " << N << endl << endl;
@@ -151,26 +173,11 @@ int main(int argc, char** argv)
       obj1 = key1->ReadObj();
       if (obj1->InheritsFrom(TDirectory::Class())) {
 
-        TDirectory *d1 = static_cast<TDirectory*>(obj1);
+        const TDirectory *d1 = static_cast<TDirectory*>(obj1);
 
-        if (dir_key(hkey,d1)) {
-          static TKey *key2;
-          TIter nextkey2(d1->GetListOfKeys());
-          while ((key2 = (TKey*)nextkey2())) {
-            static TObject *obj2;
-            obj2 = key2->ReadObj();
-            if (obj2->InheritsFrom(TH1::Class())) {
-              h = static_cast<TH1*>(obj2);
-              h->Scale(nN);
-              hist_key(hkey,h);
-              if (first) hmap.insert(hkey,h);
-              else {
-                hmap.get(hkey,_h);
-                _h->Add(h);
-              }
-            }
-          }
-        } else if (!jet_alg.compare(d1->GetName())) {
+        if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey);
+
+        else if (!jet_alg.compare(d1->GetName())) {
           static TKey *key2;
           TIter nextkey2(d1->GetListOfKeys());
           while ((key2 = (TKey*)nextkey2())) {
@@ -178,26 +185,9 @@ int main(int argc, char** argv)
             obj2 = key2->ReadObj();
             if (obj2->InheritsFrom(TDirectory::Class())) {
 
-              TDirectory *d2 = static_cast<TDirectory*>(obj2);
+              const TDirectory *d2 = static_cast<TDirectory*>(obj2);
 
-              if (dir_key(hkey,d2)) {
-                static TKey *key3;
-                TIter nextkey3(d2->GetListOfKeys());
-                while ((key3 = (TKey*)nextkey3())) {
-                  static TObject *obj3;
-                  obj3 = key3->ReadObj();
-                  if (obj3->InheritsFrom(TH1::Class())) {
-                    h = static_cast<TH1*>(obj3);
-                    h->Scale(nN);
-                    hist_key(hkey,h);
-                    if (first) hmap.insert(hkey,h);
-                    else {
-                      hmap.get(hkey,_h);
-                      _h->Add(h);
-                    }
-                  }
-                }
-              }
+              if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey);
 
             }
           }
@@ -285,6 +275,14 @@ int main(int argc, char** argv)
           if (scales_lo[i]<x) scales_lo[i] = x;
         }
       }
+
+      bins_edge[i] /= total_N;
+      bins_wdth[i] /= total_N;
+      cent     [i] /= total_N;
+      scales_lo[i] /= total_N;
+      scales_hi[i] /= total_N;
+      pdf_lo   [i] /= total_N;
+      pdf_hi   [i] /= total_N;
     }
 
     const Double_t sigma   = h_cent->Integral(0,nbins+1);
