@@ -20,7 +20,6 @@
 #include <TGraphAsymmErrors.h>
 
 #include "propmap11.h"
-#include "labeled.h"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -29,24 +28,22 @@ namespace po = boost::program_options;
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 // ******************************************************************
-struct hist_acc {
-  TH1 *h, *_h;
-  static Double_t N_cur;
-  static Double_t N_total;
-};
-Double_t hist_acc::N_cur   = 0.;
-Double_t hist_acc::N_total = 0.;
-
-typedef propmap<hist_acc,5> hmap_t;
+typedef propmap<TH1*,5> hmap_t;
 typedef hmap_t::Key hkey_t;
+
+hmap_t hmap;
+hkey_t hkey;
 
 vector<string> scales;
 
-void hist_key(hkey_t& hkey, TH1* h) noexcept {
+Double_t N_scale = 0.;
+Double_t N_total = 0.;
+
+void hist_key(TH1* h) noexcept {
   hkey[0] = new prop<string>(h->GetName());
 }
 
-bool dir_key(hkey_t& hkey, const TDirectory* d) noexcept {
+bool dir_key(const TDirectory* d) noexcept {
   static const boost::regex regex("Fac(.*)_Ren(.*)_PDF(.*)_(.*)");
   static boost::smatch result;
   if ( boost::regex_search(string(d->GetName()), result, regex) ) {
@@ -62,7 +59,7 @@ bool dir_key(hkey_t& hkey, const TDirectory* d) noexcept {
   } else return false;
 }
 
-void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey, bool first) {
+void get_hists(const TDirectory *d, bool first) noexcept {
   static TKey *key;
   TIter nextkey(d->GetListOfKeys());
   while ((key = (TKey*)nextkey())) {
@@ -71,13 +68,10 @@ void get_hists(const TDirectory *d, hmap_t& hmap, hkey_t& hkey, bool first) {
     if (obj->InheritsFrom(TH1::Class())) {
       static TH1* h;
       h = static_cast<TH1*>(obj);
-      hist_key(hkey,h);
+      h->Scale(N_scale);
+      hist_key(h);
       if (first) hmap.insert(hkey,h);
-      else {
-        static TH1* _h;
-        hmap.get(hkey,_h);
-        _h->Add(h);
-      }
+      else hmap.get(hkey)->Add(h);
     }
   }
 }
@@ -93,7 +87,7 @@ string sigma_prt(Double_t sigma, unsigned prec) {
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  vector<string> fin_vec;
+  vector<string> fin;
   string fout, jet_alg, pdf, title;
   float of_lim;
   bool  of_draw = false;
@@ -103,7 +97,7 @@ int main(int argc, char** argv)
     po::options_description all_opt("Options");
     all_opt.add_options()
     ("help,h", "produce help message")
-    ("input,i", po::value<vector<string>>(&fin_vec)->required()->multitoken(),
+    ("input,i", po::value<vector<string>>(&fin)->required()->multitoken(),
      "input file with histograms")
     ("output,o", po::value<string>(&fout)->required(),
      "output pdf plots")
@@ -135,71 +129,53 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  labeled<string> fin(fin_vec);
-
-  // property map of histograms
-  hmap_t hmap;
-  hkey_t hkey;
-
   // Get histograms *************************************************
   TFile *first_file = nullptr;
-  for (const auto& ftype : fin.labels()) {
+  for (const auto& fname : fin) {
+    static bool first = true;
 
-    hist_acc::N_cur = 0.;
+    TFile *f = new TFile(fname.c_str(),"read");
+    if (f->IsZombie()) exit(1);
 
-    for (const auto& fname : fin.values(ftype)) {
-      static bool first = true;
+    const Double_t N = ((TH1*)f->Get("N"))->GetBinContent(1);
+    N_scale = 1./N;
+    N_total += N;
 
-      cout <<'\"'<< ftype <<"\" : \""<< fname <<'\"'<< endl;
-      continue;
+    cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
+    cout << "\033[36mEvents:\033[0m " << N << endl << endl;
 
-      TFile *f = new TFile(fname.c_str(),"read");
-      if (f->IsZombie()) exit(1);
+    static TKey *key1;
+    TIter nextkey1(f->GetListOfKeys());
+    while ((key1 = (TKey*)nextkey1())) {
+      static TObject *obj1;
+      obj1 = key1->ReadObj();
+      if (obj1->InheritsFrom(TDirectory::Class())) {
 
-      const Double_t  N = ((TH1*)f->Get("N"))->GetBinContent(1);
-      hist_acc::N_cur += N;
+        const TDirectory *d1 = static_cast<TDirectory*>(obj1);
 
-      cout << "\033[36mFile  :\033[0m " << f->GetName() << endl;
-      cout << "\033[36mEvents:\033[0m " << N << endl << endl;
+        if (dir_key(d1)) get_hists(d1,first);
 
-      static TKey *key1;
-      TIter nextkey1(f->GetListOfKeys());
-      while ((key1 = (TKey*)nextkey1())) {
-        static TObject *obj1;
-        obj1 = key1->ReadObj();
-        if (obj1->InheritsFrom(TDirectory::Class())) {
+        else if (!jet_alg.compare(d1->GetName())) {
+          static TKey *key2;
+          TIter nextkey2(d1->GetListOfKeys());
+          while ((key2 = (TKey*)nextkey2())) {
+            static TObject *obj2;
+            obj2 = key2->ReadObj();
+            if (obj2->InheritsFrom(TDirectory::Class())) {
 
-          const TDirectory *d1 = static_cast<TDirectory*>(obj1);
+              const TDirectory *d2 = static_cast<TDirectory*>(obj2);
 
-          if (dir_key(hkey,d1)) get_hists(d1,hmap,hkey,first);
+              if (dir_key(d2)) get_hists(d2,first);
 
-          else if (!jet_alg.compare(d1->GetName())) {
-            static TKey *key2;
-            TIter nextkey2(d1->GetListOfKeys());
-            while ((key2 = (TKey*)nextkey2())) {
-              static TObject *obj2;
-              obj2 = key2->ReadObj();
-              if (obj2->InheritsFrom(TDirectory::Class())) {
-
-                const TDirectory *d2 = static_cast<TDirectory*>(obj2);
-
-                if (dir_key(hkey,d2)) get_hists(d2,hmap,hkey,first);
-
-              }
             }
           }
         }
       }
-      if (first) first_file = f;
-      else delete f;
-      first = false;
     }
-    hist_acc::N_total += hist_acc::N_cur;
-
-
-
+    if (first) first_file = f;
+    else delete f;
+    first = false;
   }
-  exit(0);
 
   // Make plots *****************************************************
   if (pdf.size()) {
@@ -277,14 +253,7 @@ int main(int argc, char** argv)
           if (scales_lo[i]<x) scales_lo[i] = x;
         }
       }
-
-      cent     [i] /= total_N;
-      scales_lo[i] /= total_N;
-      scales_hi[i] /= total_N;
-      pdf_lo   [i] /= total_N;
-      pdf_hi   [i] /= total_N;
     }
-    h_cent->Scale(1./total_N);
 
     const string _hname( hname->str() );
 
@@ -395,12 +364,12 @@ int main(int argc, char** argv)
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    // TLatex N_lbl(0.73,0.69, [](){}().c_str());
-    // N_lbl.SetNDC();
-    // N_lbl.SetTextAlign(13);
-    // N_lbl.SetTextFont(42);
-    // N_lbl.SetTextSize(0.035);
-    // N_lbl.Draw();
+    TLatex N_lbl(0.73,0.64, Form("Events: %.2e",N_total));
+    N_lbl.SetNDC();
+    N_lbl.SetTextAlign(13);
+    N_lbl.SetTextFont(42);
+    N_lbl.SetTextSize(0.035);
+    N_lbl.Draw();
 
     if (of_draw) {
       if (sigma_u/sigma > of_lim) {
