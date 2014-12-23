@@ -353,6 +353,12 @@ int main(int argc, char** argv)
 
   #define h_(name) h_##name(#name)
 
+  /* NOTE:
+   * excl = exactly the indicated number of jets, zero if no j in name
+   * incl = that many or more jets
+   * VBF = vector boson fusion cut
+   */
+
   // Book Histograms
   hist_alg_wt
     h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
@@ -526,16 +532,16 @@ int main(int argc, char** argv)
           const Double_t deltay_j_j     = abs(j1_eta - j2_eta);
           const Double_t H_jj_deltay    = abs(H_eta-jj.Rapidity());
 
-          h_j_j_deltaphi    .Fill(deltaPhi_j_j);
-          h_H_jj_deltaphi   .Fill(deltaPhi_H_jj);
-          h_Hjj_pT          .Fill(Hjj_pt);
-          h_H_jj_pT         .Fill(H_pt);
-          h_jet2_pT         .Fill(j2_pt);
-          h_jet2_y          .Fill(j2_eta);
-          h_jj_mass         .Fill(jj_mass);
-          h_H_jj_mass       .Fill(Hjj_mass);
-          h_j_j_deltay      .Fill(deltay_j_j);
-          h_H_jj_deltay     .Fill(H_jj_deltay);
+          h_j_j_deltaphi .Fill(deltaPhi_j_j);
+          h_H_jj_deltaphi.Fill(deltaPhi_H_jj);
+          h_Hjj_pT       .Fill(Hjj_pt);
+          h_H_jj_pT      .Fill(H_pt);
+          h_jet2_pT      .Fill(j2_pt);
+          h_jet2_y       .Fill(j2_eta);
+          h_jj_mass      .Fill(jj_mass);
+          h_H_jj_mass    .Fill(Hjj_mass);
+          h_j_j_deltay   .Fill(deltay_j_j);
+          h_H_jj_deltay  .Fill(H_jj_deltay);
 
           if (deltay_j_j>2.8) {
             if (jj_mass>400) {

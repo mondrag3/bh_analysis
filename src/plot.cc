@@ -348,6 +348,7 @@ int main(int argc, char** argv)
 
     TLegend leg(0.72,0.75,0.89,0.89);
     leg.SetBorderSize(0);
+    leg.SetFillStyle(0);
     leg.AddEntry(&g_scales, "Scale unc");
     leg.AddEntry(&g_pdf_unc,"PDF unc");
     leg.Draw();
