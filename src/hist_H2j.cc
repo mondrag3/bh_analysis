@@ -433,7 +433,7 @@ int main(int argc, char** argv)
 
     h_H_mass.Fill(H_mass);
     h_H_pt  .Fill(H_pt);
-    h_H_y   .Fill(abs(H_eta));
+    h_H_y   .Fill(H_eta);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // Loop over SpartyJet clustering algorithms
@@ -531,7 +531,7 @@ int main(int argc, char** argv)
           h_Hjj_pT          .Fill(Hjj_pt);
           h_H_jj_pT         .Fill(H_pt);
           h_jet2_pT         .Fill(j2_pt);
-          h_jet2_y          .Fill(abs(j2_eta));
+          h_jet2_y          .Fill(j2_eta);
           h_jj_mass         .Fill(jj_mass);
           h_H_jj_mass       .Fill(Hjj_mass);
           h_j_j_deltay      .Fill(deltay_j_j);

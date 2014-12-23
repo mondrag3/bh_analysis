@@ -191,7 +191,9 @@ int main(int argc, char** argv)
     }
     exit(1);
   }
-  cout << "\033[36mPDF:\033[0m " << hkey[3] << endl << endl;
+
+  cout << "\033[36mPDF    :\033[0m " << hkey[3] << endl << endl;
+  cout << "\033[36mJet Alg:\033[0m " << jet_alg << endl << endl;
 
   const prop_ptr pdf_cent = new prop<string>("cent");
   const prop_ptr pdf_down = new prop<string>("down");
@@ -350,26 +352,33 @@ int main(int argc, char** argv)
     leg.AddEntry(&g_pdf_unc,"PDF unc");
     leg.Draw();
 
-    TText jet_alg_lbl(0.73,0.74,("Jet alg: "+jet_alg).c_str());
-    jet_alg_lbl.SetNDC();
-    jet_alg_lbl.SetTextAlign(13);
-    jet_alg_lbl.SetTextFont(42);
-    jet_alg_lbl.SetTextSize(0.035);
-    jet_alg_lbl.Draw();
-
-    TLatex cs_lbl(0.73,0.69, sigma_prt(sigma,3).c_str());
+    TLatex cs_lbl(0.73,0.74, sigma_prt(sigma,3).c_str());
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    TLatex N_lbl(0.73,0.64, Form("Events: %.2e",N_total));
+    TLatex N_lbl(0.73,0.70, Form("Events: %.2e",N_total));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
     N_lbl.SetTextFont(42);
     N_lbl.SetTextSize(0.035);
     N_lbl.Draw();
+
+    TText jet_alg_lbl(0.73,0.66,("Jet alg: "+jet_alg).c_str());
+    jet_alg_lbl.SetNDC();
+    jet_alg_lbl.SetTextAlign(13);
+    jet_alg_lbl.SetTextFont(42);
+    jet_alg_lbl.SetTextSize(0.035);
+    jet_alg_lbl.Draw();
+
+    TLatex pdf_lbl(0.73,0.62, ("PDF: "+hkey[3]->str()).c_str());
+    pdf_lbl.SetNDC();
+    pdf_lbl.SetTextAlign(13);
+    pdf_lbl.SetTextFont(42);
+    pdf_lbl.SetTextSize(0.035);
+    pdf_lbl.Draw();
 
     if (of_draw) {
       if (sigma_u/sigma > of_lim) {
