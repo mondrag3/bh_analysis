@@ -376,7 +376,7 @@ int main(int argc, char** argv)
     h_(H_j_pT), h_(H_j_pT_excl),
     h_(Hj_pT), h_(Hj_pT_excl),
 
-    h_(H_jj_pT), h_(H_jj_pT_excl), h_(H_jj_mass),
+    h_(H_jj_pT), h_(H_jj_pT_excl), h_(Hjj_mass),
     h_(H_jj_deltaphi), h_(H_jj_deltaphi_excl),
     h_(H_jj_deltay),
     h_(Hjj_pT), h_(Hjj_pT_excl),
@@ -539,7 +539,7 @@ int main(int argc, char** argv)
           h_jet2_pT      .Fill(j2_pt);
           h_jet2_y       .Fill(j2_eta);
           h_jj_mass      .Fill(jj_mass);
-          h_H_jj_mass    .Fill(Hjj_mass);
+          h_Hjj_mass     .Fill(Hjj_mass);
           h_j_j_deltay   .Fill(deltay_j_j);
           h_H_jj_deltay  .Fill(H_jj_deltay);
 
