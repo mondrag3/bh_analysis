@@ -37,6 +37,13 @@ struct mu_fHt: public mu_fcn {
   virtual ~mu_fHt() { }
 };
 
+struct mu_fHt_Higgs: public mu_fcn {
+  double fHt;
+  mu_fHt_Higgs(double fHt) noexcept;
+  virtual double mu() const noexcept;
+  virtual ~mu_fHt_Higgs() { }
+};
+
 struct mu_fac_default: public mu_fcn {
   mu_fac_default() noexcept;
   virtual double mu() const noexcept;

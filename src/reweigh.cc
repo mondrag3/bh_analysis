@@ -115,18 +115,18 @@ int main(int argc, char** argv)
 
   // pointers to calc (automatically collected)
   // (as well as argument pointers)
-  auto FacHt1 = mk_fac_calc(new mu_fHt(1.));
-  auto FacHt2 = mk_fac_calc(new mu_fHt(0.5),true);
-  auto FacHt4 = mk_fac_calc(new mu_fHt(0.25));
+  auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
+  auto FacHt2 = mk_fac_calc(new mu_fHt_Higgs(0.5)/*,true*/);
+  auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
 
-  auto RenHt1 = mk_ren_calc(new mu_fHt(1.));
-  auto RenHt2 = mk_ren_calc(new mu_fHt(0.5));
-  auto RenHt4 = mk_ren_calc(new mu_fHt(0.25));
+  auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.));
+  auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5));
+  auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
 
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
-    new reweighter(FacHt2,RenHt2,tree,true),
+    new reweighter(FacHt2,RenHt2,tree/*,true*/),
     new reweighter(FacHt2,RenHt1,tree),
     new reweighter(FacHt2,RenHt4,tree),
     new reweighter(FacHt4,RenHt2,tree),

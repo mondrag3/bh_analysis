@@ -78,6 +78,18 @@ double mu_fHt::mu() const noexcept {
   return fHt*event.Ht();
 }
 
+mu_fHt_Higgs::mu_fHt_Higgs(double fHt) noexcept
+: mu_fcn( [&fHt] () { // lambda
+    stringstream ss;
+    ss << fHt << "Ht";
+    return ss.str();
+  } () ),
+  fHt(fHt)
+{ }
+double mu_fHt_Higgs::mu() const noexcept {
+  return fHt*event.Ht_Higgs();
+}
+
 mu_fac_default::mu_fac_default() noexcept : mu_fcn("def") { }
 double mu_fac_default::mu() const noexcept {
   return event.fac_scale;

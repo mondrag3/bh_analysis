@@ -35,7 +35,8 @@ public:
   Char_t          alphas_power;
   Char_t          part[2];
 
-  Double_t Ht() const;
+  Double_t Ht() const noexcept;
+  Double_t Ht_Higgs() const noexcept;
 
   enum select_t { all, kinematics, reweighting, cross_section };
 

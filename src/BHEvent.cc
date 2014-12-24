@@ -86,9 +86,17 @@ void BHEvent::SetAlphasPower(Char_t n) { this->alphas_power = n; }
 
 template<typename T> T sq(T x) { return x*x; }
 
-Double_t BHEvent::Ht() const {
+Double_t BHEvent::Ht() const noexcept {
   Double_t _Ht = 0.;
   for (Int_t i=0;i<nparticle;++i)
     _Ht += sqrt( sq(px[i]) + sq(py[i]) );
+  return _Ht;
+}
+Double_t BHEvent::Ht_Higgs() const noexcept {
+  Double_t _Ht = 0.;
+  for (Int_t i=0;i<nparticle;++i) {
+    if (kf[i]==25) _Ht += sqrt( sq(E[i]) - sq(pz[i]) ); // sqrt(m^2+pt^2)
+    else _Ht += sqrt( sq(px[i]) + sq(py[i]) ); // pt
+  }
   return _Ht;
 }
