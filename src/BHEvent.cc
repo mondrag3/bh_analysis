@@ -42,6 +42,13 @@ void BHEvent::SetTree(TTree* tree, select_t branches, bool old) {
       }
 
     } break;
+    case cross_section: {
+
+      // tree->SetBranchAddress("nparticle", &nparticle);
+      // tree->SetBranchAddress("kf", kf);
+      tree->SetBranchAddress("weight", &weight);
+
+    } break;
     default: {
 
       tree->SetBranchAddress("id", &eid);

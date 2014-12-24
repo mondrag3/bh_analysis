@@ -37,7 +37,7 @@ public:
 
   Double_t Ht() const;
 
-  enum select_t { all, kinematics, reweighting };
+  enum select_t { all, kinematics, reweighting, cross_section };
 
   void SetTree(TTree* tree, select_t branches=all, bool old=false);
 
