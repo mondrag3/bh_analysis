@@ -28,6 +28,7 @@ int main(int argc, char** argv)
   const Long64_t nent = tree->GetEntries();
   cout << "Entries: " << nent << endl;
   for (Long64_t ent = 0; ent < nent; ++ent) {
+    tree->GetEntry(ent);
     sigma += event.weight;
   }
   sigma /= nent;
