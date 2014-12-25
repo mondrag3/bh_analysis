@@ -36,6 +36,7 @@ void sigma(TDirectory *d) {
     TH1 *h = (TH1*)d->Get(ss.str().c_str());
     if (!h) continue;
 
+    cout << "Selected: " << h->GetEntries() << endl;
     cout << "H+" << j << "jets σ = "
          << showpoint << setprecision(6)
          << h->Integral(0,h->GetNbinsX()+1)/N
