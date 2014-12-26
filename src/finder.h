@@ -1,6 +1,10 @@
 #ifndef finder_h
 #define finder_h
 
+#include <string>
+#include <sstream>
+#include <stdexcept>
+
 template <class T>
 class finder {
 private:

@@ -100,3 +100,5 @@ Double_t BHEvent::Ht_Higgs() const noexcept {
   }
   return _Ht;
 }
+
+BHEvent BHEvent::event;

@@ -45,6 +45,8 @@ public:
   void SetPart(Char_t part);
   void SetAlphasPower(Char_t n);
 
+  static BHEvent event;
+
 };
 
 #endif
