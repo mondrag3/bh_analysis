@@ -1,22 +1,21 @@
-#include <cmath>
+// #include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <fstream>
+// #include <fstream>
 #include <string>
 #include <vector>
-#include <unordered_map>
+// #include <unordered_map>
 #include <utility>
-#include <stdexcept>
-#include <memory>
+// #include <stdexcept>
+// #include <memory>
 
 #include <boost/program_options.hpp>
 
 #include <TFile.h>
 #include <TTree.h>
 #include <TChain.h>
-#include <TDirectory.h>
-#include <TSystem.h>
+// #include <TDirectory.h>
 
 #include "selector.h"
 
@@ -54,7 +53,7 @@ int main(int argc, char** argv)
   // START OPTIONS **************************************************
   vector<string> bh_files, sj_files, wt_files,
                  jet_algs, weights;
-  string output_file, css_file, analysis;
+  string output_file, css_file;
   double pt_cut, eta_cut;
   range<Long64_t> num_events;
   bool quiet;
@@ -72,8 +71,6 @@ int main(int argc, char** argv)
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
-      ("analysis,a", po::value<string>(&analysis)->required(),
-       "analysis .so plugin")
       ("jet-alg", po::value<vector<string>>(&jet_algs)
        ->default_value({"AntiKt4"},"AntiKt4"),
        "jet algorithms from SJ file")
@@ -85,7 +82,7 @@ int main(int argc, char** argv)
       ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut")
       ("style,s", po::value<string>(&css_file)
-       ->default_value(CONFDIR"/H2j.css","H2j.css"),
+       ->default_value(CONFDIR"/Hj.css","Hj.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value< range<Long64_t> >(&num_events),
        "process only this many events, num or first:num")
@@ -215,7 +212,7 @@ int main(int argc, char** argv)
     }
   }
 
-  gSystem->Load(analysis.c_str());
+  fout->cd();
 
   // Reading events from the input TChain ***************************
   cout << "Reading " << num_events.second << " entries";
@@ -223,8 +220,9 @@ int main(int argc, char** argv)
   else cout << endl;
   timed_counter counter;
 
-  tree->Process(unique_ptr<selector>(new selector(&counter)).get(),
-                "",num_events.first,num_events.second);
+  selector *analysis = new selector(&counter);
+  tree->Process(analysis,"",num_events.first,num_events.second);
+  delete analysis;
 
   counter.prt(num_events.second);
   cout << endl;

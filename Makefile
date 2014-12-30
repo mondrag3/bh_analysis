@@ -13,7 +13,7 @@ LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
 .PHONY: all misc clean
 
-all: $(DIRS) bin/reweigh bin/hist bin/plot lib/selector_H2j.so
+all: $(DIRS) bin/reweigh bin/hist_H2j bin/plot
 
 misc: $(DIRS) bin/cross_section bin/hist_weights bin/select_old_weight_hists bin/draw_together
 
@@ -31,9 +31,9 @@ lib/rew_calc.o: lib/%.o: src/%.cc src/%.h
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # analysis plugins rules
-lib/selector_H2j.so: lib/%.so: src/%.cc src/selector.h
+lib/selector_H2j.o: lib/%.o: src/%.cc src/selector.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) -shared -fPIC $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # main object rules
 lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o: lib/%.o: src/%.cc
@@ -70,7 +70,7 @@ bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options
 
-bin/hist: bin/%: lib/%.o
+bin/hist_H2j: bin/hist_%: lib/hist.o lib/selector_%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex -lkiwihist
 
@@ -93,7 +93,7 @@ lib/plot.o         : src/propmap11.h
 bin/cross_section_bh: lib/BHEvent.o
 bin/test_rew_calc  : lib/rew_calc.o lib/BHEvent.o
 bin/reweigh        : lib/rew_calc.o lib/BHEvent.o
-bin/hist           : lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o lib/selector_base.o
+bin/hist_H2j       : lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o lib/selector_base.o
 
 clean:
 	rm -rf bin lib
