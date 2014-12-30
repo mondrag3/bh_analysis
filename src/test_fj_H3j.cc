@@ -54,7 +54,7 @@ int main(int argc, char** argv)
   // get<0>(weight[0]) = "Fac0.25Ht_Ren0.25Ht_PDFCT10nlo_cent";
   // get<0>(weight[1]) = "Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent";
   // get<0>(weight[2]) = "Fac1Ht_Ren1Ht_PDFCT10nlo_cent";
-  get<0>(weight[0]) = "Fac125_Ren125_PDFCT10nlo_cent";
+  get<0>(weight[0]) = "Fac125GeV_Ren125GeV_PDFCT10nlo_cent";
   tree->SetBranchAddress( get<0>(_weight).c_str(),
                          &get<1>(_weight) );
   for (auto& w : weight)
