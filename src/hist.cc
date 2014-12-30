@@ -194,6 +194,8 @@ int main(int argc, char** argv)
   hist::css.reset( new kiwi::csshists(css_file) );
   cout << endl;
 
+  // TODO: Check if CSS file exists
+
   // Open output file with histograms *******************************
   TFile* fout = new TFile(output_file.c_str(),"recreate");
   if (fout->IsZombie()) exit(1);
@@ -211,8 +213,6 @@ int main(int argc, char** argv)
         = dir->mkdir(w->name.c_str());
     }
   }
-
-  fout->cd();
 
   // Reading events from the input TChain ***************************
   cout << "Reading " << num_events.second << " entries";
