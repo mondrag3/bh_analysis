@@ -50,6 +50,7 @@ int main(int argc, char** argv)
 
   tuple<string,Double_t,Double_t> _weight;
   array<tuple<string,Float_t,Double_t>,3> weight;
+  get<0>(_weight)   = "weight";
   get<0>(weight[0]) = "Fac0.25Ht_Ren0.25Ht_PDFCT10nlo_cent";
   get<0>(weight[1]) = "Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent";
   get<0>(weight[2]) = "Fac1Ht_Ren1Ht_PDFCT10nlo_cent";
