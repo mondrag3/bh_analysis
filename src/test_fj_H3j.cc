@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     short njets = 0;
     for (auto& j : jets) {
       if (sqrt(j.kt2()) < 30.) continue;
-      if (abs(j.rapidity()) > 4.4) continue;
+      if (abs(j.eta()) > 4.4) continue;
       ++njets;
     }
 
