@@ -108,10 +108,13 @@ int main(int argc, char** argv)
   }
 */
 
+  tuple<string,Double_t,Double_t> _weight;
   array<tuple<string,Float_t,Double_t>,3> weight;
   get<0>(weight[0]) = "Fac0.25Ht_Ren0.25Ht_PDFCT10nlo_cent";
   get<0>(weight[1]) = "Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent";
   get<0>(weight[2]) = "Fac1Ht_Ren1Ht_PDFCT10nlo_cent";
+  tree->SetBranchAddress( get<0>(_weight).c_str(),
+                         &get<1>(_weight) );
   for (short i=0;i<3;++i)
     tree->SetBranchAddress( get<0>(weight[i]).c_str(),
                            &get<1>(weight[i]) );
@@ -131,6 +134,7 @@ int main(int argc, char** argv)
     const size_t njets = SJClusterAlg::all.front()->jetsByPt(30.,4.4).size();
 
     if (njets>=3) {
+      get<2>(_weight) += get<1>(_weight);
       for (short i=0;i<3;++i)
         get<2>(weight[i]) += get<1>(weight[i]);
       ++selected;
@@ -140,7 +144,11 @@ int main(int argc, char** argv)
   counter.prt(nent);
   cout << endl << endl;
 
-  cout << "Selected: " << selected << '/' << nent << endl;
+  cout << "Accepted " << selected << " of " << nent << " events" << endl;
+  cout << "Ntuple weight" << endl;
+  cout << "σ = "
+       << showpoint << setprecision(6) << get<2>(_weight)/nent
+       << " pb" << endl;
   for (auto& w : weight) {
     cout << get<0>(w) << endl;
     cout << "σ = "
@@ -153,5 +161,4 @@ int main(int argc, char** argv)
   delete wt_tree;
 
   return 0;
-
 }
