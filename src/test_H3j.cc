@@ -5,6 +5,8 @@
 // #include <fstream>
 #include <string>
 #include <vector>
+#include <tuple>
+#include <array>
 // #include <unordered_map>
 // #include <utility>
 // #include <stdexcept>
@@ -36,7 +38,7 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   vector<string> bh_files, sj_files, wt_files;
-  string weight_branch;
+  // string weight_branch;
 
   try {
     // General Options ------------------------------------
@@ -49,9 +51,9 @@ int main(int argc, char** argv)
        "add input SpartyJet root file")
       ("wt", po::value< vector<string> >(&wt_files)->required(),
        "add input weights root file")
-      ("weight,b", po::value<string>(&weight_branch)
-       ->default_value("Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent"),
-       "weight branch")
+      // ("weight,b", po::value<string>(&weight_branch)
+      //  ->default_value("Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent"),
+      //  "weight branch")
     ;
 
     po::variables_map vm;
@@ -89,6 +91,7 @@ int main(int argc, char** argv)
   // SpartyJet tree branches
   SJClusterAlg::add(tree,"AntiKt4");
 
+/*
   Float_t weight;
   Double_t _weight;
   bool orig_weight = false;
@@ -103,13 +106,21 @@ int main(int argc, char** argv)
     cerr << "Unknown branch: " << weight_branch << endl;
     exit(1);
   }
+*/
+
+  array<tuple<string,Float_t,Double_t>,3> weight;
+  get<0>(weight[0]) = "Fac0.25Ht_Ren0.25Ht_PDFCT10nlo_cent";
+  get<0>(weight[1]) = "Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent";
+  get<0>(weight[2]) = "Fac1Ht_Ren1Ht_PDFCT10nlo_cent";
+  for (short i=0;i<3;++i)
+    tree->SetBranchAddress( get<0>(weight[i]).c_str(),
+                           &get<1>(weight[i]) );
 
   // Reading events from the input TChain ***************************
   const Long64_t nent = tree->GetEntries();
   cout << "Reading " << nent << " entries" << endl;
   timed_counter counter;
 
-  Double_t total_weight = 0.;
   Long64_t selected = 0;
 
   for (Long64_t ent = 0; ent < nent; ++ent) {
@@ -120,8 +131,8 @@ int main(int argc, char** argv)
     const size_t njets = SJClusterAlg::all.front()->jetsByPt(30.,4.4).size();
 
     if (njets>=3) {
-      if (orig_weight) total_weight += _weight;
-      else total_weight += weight;
+      for (short i=0;i<3;++i)
+        get<2>(weight[i]) += get<1>(weight[i]);
       ++selected;
     }
   }
@@ -129,10 +140,13 @@ int main(int argc, char** argv)
   counter.prt(nent);
   cout << endl << endl;
 
-  cout << "σ = "
-       << showpoint << setprecision(6) << total_weight/nent
-       << " pb" << endl
-       << "Selected: " << selected << endl;
+  cout << "Selected: " << selected << '/' << nent << endl;
+  for (auto& w : weight) {
+    cout << get<0>(w) << endl;
+    cout << "σ = "
+         << showpoint << setprecision(6) << get<2>(w)/nent
+         << " pb" << endl;
+  }
 
   delete tree;
   delete sj_tree;
