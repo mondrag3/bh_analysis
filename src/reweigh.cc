@@ -123,16 +123,20 @@ int main(int argc, char** argv)
   auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5));
   auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
 
+  auto FacMH  = mk_fac_calc(new mu_const(125.));
+  auto RenMH  = mk_ren_calc(new mu_const(125.));
+
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
-    new reweighter(FacHt2,RenHt2,tree/*,true*/),
-    new reweighter(FacHt2,RenHt1,tree),
-    new reweighter(FacHt2,RenHt4,tree),
-    new reweighter(FacHt4,RenHt2,tree),
-    new reweighter(FacHt4,RenHt4,tree),
-    new reweighter(FacHt1,RenHt1,tree),
-    new reweighter(FacHt1,RenHt2,tree)
+    // new reweighter(FacHt2,RenHt2,tree/*,true*/),
+    // new reweighter(FacHt2,RenHt1,tree),
+    // new reweighter(FacHt2,RenHt4,tree),
+    // new reweighter(FacHt4,RenHt2,tree),
+    // new reweighter(FacHt4,RenHt4,tree),
+    // new reweighter(FacHt1,RenHt1,tree),
+    // new reweighter(FacHt1,RenHt2,tree)
+    new reweighter(FacMH,RenMH,tree)
   };
 
   // Reading events from the input ntuple ***************************

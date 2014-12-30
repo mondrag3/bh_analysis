@@ -13,6 +13,8 @@
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
+#define debug
+
 using namespace std;
 
 constexpr array<int,10> quarks {
@@ -332,6 +334,9 @@ void reweighter::stitch() const noexcept {
   // There is only one global event variable
   // so these references always points to the right place
   const char part = event.part[0];
+
+  // test(fac->mu_f->mu())
+  // test(ren->mu_r->mu())
 
   for (short k=0;k<nk;++k) {
     s[k] = fac->m[0]; // m0
