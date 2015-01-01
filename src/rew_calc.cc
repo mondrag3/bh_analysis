@@ -316,14 +316,14 @@ void ren_calc::calc() const noexcept {
 
   const double mu = mu_r->mu();
 
-  test(pdf->alphasQ(mu))
-  test(alphas)
-  test(int(n))
+  // test(pdf->alphasQ(mu))
+  // test(alphas)
+  // test(int(n))
 
   // Calculate α_s change from renormalization
   if (!defaultPDF) ar = pow( pdf->alphasQ(mu) / alphas, n );
 
-  test(ar)
+  // test(ar)
 
   if (part=='V' || part=='I') {
     lr = 2.*log( mu / ren_scale ); // Calculate lr, same as l in Eq (30)
@@ -359,5 +359,5 @@ void reweighter::stitch() const noexcept {
     }
   }
 
-  test(weight[0])
+  // test(weight[0])
 }
