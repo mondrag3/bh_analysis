@@ -75,6 +75,8 @@ int main(int argc, char** argv)
     counter(ent);
     tree->GetEntry(ent);
 
+    test(ent)
+
     // Collect Final State particles
     vector<PseudoJet> particles;
     particles.reserve(event.nparticle);

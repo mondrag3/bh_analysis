@@ -316,8 +316,14 @@ void ren_calc::calc() const noexcept {
 
   const double mu = mu_r->mu();
 
+  test(pdf->alphasQ(mu))
+  test(alphas)
+  test(int(n))
+
   // Calculate α_s change from renormalization
   if (!defaultPDF) ar = pow( pdf->alphasQ(mu) / alphas, n );
+
+  test(ar)
 
   if (part=='V' || part=='I') {
     lr = 2.*log( mu / ren_scale ); // Calculate lr, same as l in Eq (30)
@@ -334,9 +340,6 @@ void reweighter::stitch() const noexcept {
   // There is only one global event variable
   // so these references always points to the right place
   const char part = event.part[0];
-
-  // test(fac->mu_f->mu())
-  // test(ren->mu_r->mu())
 
   for (short k=0;k<nk;++k) {
     s[k] = fac->m[0]; // m0
@@ -355,4 +358,6 @@ void reweighter::stitch() const noexcept {
       weight[k] = 0.;
     }
   }
+
+  test(weight[0])
 }

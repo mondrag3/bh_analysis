@@ -13,6 +13,9 @@
 using namespace std;
 namespace po = boost::program_options;
 
+#define test(var) \
+  cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
+
 BHEvent event; // extern
 
 // ******************************************************************
@@ -70,6 +73,9 @@ int main(int argc, char** argv)
 
   // Set up BlackHat event
   event.SetTree(tin, BHEvent::reweighting, old_bh);
+
+  tin->SetBranchAddress("weight", &event.weight);
+
   if (old_bh) {
 
     if      (BH_file.find("born")!=string::npos) event.SetPart('B');
@@ -115,13 +121,13 @@ int main(int argc, char** argv)
 
   // pointers to calc (automatically collected)
   // (as well as argument pointers)
-  auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
+  // auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
   auto FacHt2 = mk_fac_calc(new mu_fHt_Higgs(0.5)/*,true*/);
-  auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
-
-  auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.));
+  // auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
+  //
+  // auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.));
   auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5));
-  auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
+  // auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
 
   auto FacMH  = mk_fac_calc(new mu_const(125.));
   auto RenMH  = mk_ren_calc(new mu_const(125.));
@@ -129,7 +135,7 @@ int main(int argc, char** argv)
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
-    // new reweighter(FacHt2,RenHt2,tree/*,true*/),
+    new reweighter(FacHt2,RenHt2,tree/*,true*/),
     // new reweighter(FacHt2,RenHt1,tree),
     // new reweighter(FacHt2,RenHt4,tree),
     // new reweighter(FacHt4,RenHt2,tree),
@@ -143,9 +149,14 @@ int main(int argc, char** argv)
   cout << "\nReading " << num_events << " events" << endl;
   timed_counter counter(counter_newline);
 
+  cout << scientific;
+  cout.precision(10);
+
   for (Long64_t ent=0; ent<num_events; ++ent) {
     counter(ent);
     tin->GetEntry(ent);
+
+    test(ent)
 
     // use event id for event number
     event.eid = ent;
