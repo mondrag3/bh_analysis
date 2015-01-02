@@ -96,6 +96,7 @@ Double_t BHEvent::Ht_Higgs() const noexcept {
   Double_t _Ht = 0.;
   for (Int_t i=0;i<nparticle;++i) {
     if (kf[i]==25) _Ht += sqrt( sq(E[i]) - sq(pz[i]) ); // sqrt(m^2+pt^2)
+      // _Ht += sqrt( sq(px[i]) + sq(py[i]) + sq(125.) );
     else _Ht += sqrt( sq(px[i]) + sq(py[i]) ); // pt
   }
   return _Ht;

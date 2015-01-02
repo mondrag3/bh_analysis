@@ -107,25 +107,30 @@ const fac_calc* mk_fac_calc(
 // Renormalization ------------------------------
 //-----------------------------------------------
 
+enum class alphas_fcn: char { all_mu, two_mH };
+
 class ren_calc: public calc_base {
 protected:
   const mu_fcn* mu_r;
+  alphas_fcn asfcn;
   bool defaultPDF;
 
   mutable double ar, lr, m0;
 
-  ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept;
+  ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept;
   virtual void calc() const noexcept;
 
 public:
   virtual ~ren_calc();
 
-friend const ren_calc* mk_ren_calc(const mu_fcn*, bool) noexcept;
+friend const ren_calc* mk_ren_calc(const mu_fcn*, alphas_fcn, bool) noexcept;
 
 friend class reweighter;
 };
 
-const ren_calc* mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF=false) noexcept;
+const ren_calc* mk_ren_calc(
+  const mu_fcn* mu_r, alphas_fcn asfcn=alphas_fcn::all_mu, bool defaultPDF=false
+) noexcept;
 
 //-----------------------------------------------
 // Reweighter: combines fac and ren -------------

@@ -30,6 +30,7 @@ const LHAPDF::PDFSet* pdfset(nullptr);
 vector<LHAPDF::PDF*> pdfs;
 const LHAPDF::PDF* pdf; // central PDF
 size_t npdfs;
+double alphas_mH;
 
 // PDF garbage collector
 struct PDFgc {
@@ -48,6 +49,7 @@ void usePDFset(const std::string& setname) {
   pdfs = pdfset->mkPDFs();
   pdf = pdfs[0];
   npdfs = pdfs.size();
+  alphas_mH = pdf->alphasQ(125.);
 }
 
 //-----------------------------------------------
@@ -132,12 +134,12 @@ fac_calc::~fac_calc() {
 // Renormalization ------------------------------
 
 const ren_calc*
-mk_ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept {
-  return new ren_calc(mu_r,defaultPDF);
+mk_ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept {
+  return new ren_calc(mu_r,asfcn,defaultPDF);
 }
 
-ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept
-: calc_base(), mu_r(mu_r), defaultPDF(defaultPDF), ar(1.)
+ren_calc::ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept
+: calc_base(), mu_r(mu_r), asfcn(asfcn), defaultPDF(defaultPDF), ar(1.)
 {
   all.push_back( unique_ptr<const calc_base>(this) );
 }
@@ -316,12 +318,23 @@ void ren_calc::calc() const noexcept {
 
   const double mu = mu_r->mu();
 
+  // test(ren_scale)
+  // test(mu)
+
   // test(pdf->alphasQ(mu))
   // test(alphas)
   // test(int(n))
 
   // Calculate α_s change from renormalization
-  if (!defaultPDF) ar = pow( pdf->alphasQ(mu) / alphas, n );
+  if (!defaultPDF) {
+    const double to_alphas = pdf->alphasQ(mu);
+    switch (asfcn) {
+      case alphas_fcn::all_mu:
+        ar = pow( to_alphas/alphas, n ); break;
+      case alphas_fcn::two_mH:
+        ar = sq(to_alphas/alphas_mH)*pow(to_alphas/alphas, n-2); break;
+    }
+  }
 
   // test(ar)
 

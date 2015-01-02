@@ -41,6 +41,18 @@ int main(int argc, char** argv)
   if (!   tree->AddFile(argv[1],-1) ) exit(1);
   if (!wt_tree->AddFile(argv[2],-1) ) exit(1);
 
+  // List weight branches
+  tuple<string,Double_t,Double_t> _weight;
+  vector<tuple<string,Float_t,Double_t>> weight;
+  {
+    get<0>(_weight)   = "weight";
+    const TObjArray *wts = wt_tree->GetListOfBranches();
+    const Int_t nwts = wts->GetEntries();
+    weight.resize(nwts);
+    for (Int_t i=0;i<nwts;++i)
+      get<0>(weight[i]) = wts->At(i)->GetName();
+  }
+
   // Friend BlackHat tree with SpartyJet and Weight trees
   tree->AddFriend(wt_tree,"weights");
 
@@ -48,15 +60,8 @@ int main(int argc, char** argv)
   BHEvent event;
   event.SetTree(tree, BHEvent::kinematics);
 
-  tuple<string,Double_t,Double_t> _weight;
-  array<tuple<string,Float_t,Double_t>,2> weight;
-  get<0>(_weight)   = "weight";
-  // get<0>(weight[0]) = "Fac0.25Ht_Ren0.25Ht_PDFCT10nlo_cent";
-  get<0>(weight[1]) = "Fac0.5Ht_Ren0.5Ht_PDFCT10nlo_cent";
-  // get<0>(weight[2]) = "Fac1Ht_Ren1Ht_PDFCT10nlo_cent";
-  get<0>(weight[0]) = "Fac125GeV_Ren125GeV_PDFCT10nlo_cent";
-  tree->SetBranchAddress( get<0>(_weight).c_str(),
-                         &get<1>(_weight) );
+  // Set weight branches address
+  tree->SetBranchAddress( get<0>(_weight).c_str(), &get<1>(_weight) );
   for (auto& w : weight)
     tree->SetBranchAddress( get<0>(w).c_str(), &get<1>(w) );
 
@@ -75,7 +80,7 @@ int main(int argc, char** argv)
     counter(ent);
     tree->GetEntry(ent);
 
-    test(ent)
+    // test(ent)
 
     // Collect Final State particles
     vector<PseudoJet> particles;

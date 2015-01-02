@@ -35,7 +35,7 @@ int main(int argc, char** argv)
        "input event root file (Blackhat ntuple)")
       ("weights,o", po::value<string>(&weights_file)->required(),
        "output root file with new event weights")
-      ("pdf", po::value<string>(&pdf_set)->required(),
+      ("pdf", po::value<string>(&pdf_set)->default_value("CT10nlo"),
        "LHAPDF set name")
       ("num-events,n", po::value<Long64_t>(&num_events),
        "process only this many events. Zero means all.")
@@ -126,16 +126,20 @@ int main(int argc, char** argv)
   // auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
   //
   // auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.));
-  auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5));
+  auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5),alphas_fcn::two_mH);
   // auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
 
   auto FacMH  = mk_fac_calc(new mu_const(125.));
-  auto RenMH  = mk_ren_calc(new mu_const(125.));
+  auto RenMH  = mk_ren_calc(new mu_const(125.),alphas_fcn::two_mH);
+
+  auto FacDef = mk_fac_calc(new mu_fac_default());
+  auto RenDef = mk_ren_calc(new mu_ren_default(),alphas_fcn::two_mH);
 
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
     new reweighter(FacHt2,RenHt2,tree/*,true*/),
+    new reweighter(FacDef,RenDef,tree/*,true*/),
     // new reweighter(FacHt2,RenHt1,tree),
     // new reweighter(FacHt2,RenHt4,tree),
     // new reweighter(FacHt4,RenHt2,tree),
@@ -156,7 +160,8 @@ int main(int argc, char** argv)
     counter(ent);
     tin->GetEntry(ent);
 
-    test(ent)
+    // test(ent)
+    // test(event.weight)
 
     // use event id for event number
     event.eid = ent;
