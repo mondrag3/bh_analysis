@@ -14,8 +14,6 @@
 #include <fastjet/ClusterSequence.hh>
 
 #include "BHEvent.h"
-// #include "SJClusterAlg.h"
-// #include "finder.h"
 #include "timed_counter.h"
 
 #define test(var) \

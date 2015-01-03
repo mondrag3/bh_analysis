@@ -318,8 +318,10 @@ void ren_calc::calc() const noexcept {
 
   const double mu = mu_r->mu();
 
-  // test(ren_scale)
-  // test(mu)
+  cout << endl;
+  test(mu_r->str)
+  test(ren_scale)
+  test(mu)
 
   // test(pdf->alphasQ(mu))
   // test(alphas)

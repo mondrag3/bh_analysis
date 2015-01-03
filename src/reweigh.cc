@@ -160,8 +160,8 @@ int main(int argc, char** argv)
     counter(ent);
     tin->GetEntry(ent);
 
-    // test(ent)
-    // test(event.weight)
+    test(ent)
+    test(event.weight)
 
     // use event id for event number
     event.eid = ent;

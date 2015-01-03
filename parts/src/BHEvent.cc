@@ -23,6 +23,9 @@ void BHEvent::SetTree(TTree* tree, select_t branches, bool old) {
       tree->SetBranchAddress("nparticle", &nparticle);
       tree->SetBranchAddress("px", px);
       tree->SetBranchAddress("py", py);
+      // tree->SetBranchAddress("pz", pz);
+      // tree->SetBranchAddress("E" , E );
+      tree->SetBranchAddress("kf", kf);
       tree->SetBranchAddress("alphas", &alphas);
       tree->SetBranchAddress("weight2", &weight2);
       tree->SetBranchAddress("me_wgt", &me_wgt);
@@ -84,7 +87,7 @@ void BHEvent::SetTree(TTree* tree, select_t branches, bool old) {
 void BHEvent::SetPart(Char_t part) { this->part[0] = part; }
 void BHEvent::SetAlphasPower(Char_t n) { this->alphas_power = n; }
 
-template<typename T> T sq(T x) { return x*x; }
+template<typename T> constexpr T sq(T x) { return x*x; }
 
 Double_t BHEvent::Ht() const noexcept {
   Double_t _Ht = 0.;
@@ -92,12 +95,13 @@ Double_t BHEvent::Ht() const noexcept {
     _Ht += sqrt( sq(px[i]) + sq(py[i]) );
   return _Ht;
 }
+
 Double_t BHEvent::Ht_Higgs() const noexcept {
   Double_t _Ht = 0.;
   for (Int_t i=0;i<nparticle;++i) {
-    if (kf[i]==25) _Ht += sqrt( sq(E[i]) - sq(pz[i]) ); // sqrt(m^2+pt^2)
-      // _Ht += sqrt( sq(px[i]) + sq(py[i]) + sq(125.) );
-    else _Ht += sqrt( sq(px[i]) + sq(py[i]) ); // pt
+    Double_t pt2 = sq(px[i]) + sq(py[i]);
+    if (kf[i]==25) pt2 += sq(125.); // mH^2
+    _Ht += sqrt(pt2);
   }
   return _Ht;
 }

@@ -40,10 +40,6 @@ bin/reweigh: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(LHAPDF_LIBS) -lboost_program_options
 
-bin/test_rew_calc: bin/%: lib/%.o
-	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(LHAPDF_LIBS)
-
 bin/hist_weights: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_regex
@@ -86,12 +82,12 @@ bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.
 bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
 
 # tools rule
-tools/%:
-	@$(MAKE) -C tools $*
+tools/lib/%.o: tools/src/%.cc tools/include/%.h
+	@$(MAKE) -C tools lib/$*.o
 
 # parts rule
-parts/%:
-	@$(MAKE) -C parts $*
+parts/lib/%.o: parts/src/%.cc parts/include/%.h
+	@$(MAKE) -C parts lib/$*.o
 
 clean:
 	rm -rf bin/* lib/*
