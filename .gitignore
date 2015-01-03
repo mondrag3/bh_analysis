@@ -1,6 +1,10 @@
 # Compilation output
 /lib
 /bin
+/tools/lib
+/tools/bin
+/parts/lib
+/parts/bin
 
 # Computation output
 /out

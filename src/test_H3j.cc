@@ -1,29 +1,18 @@
-// #include <cmath>
 #include <iostream>
 #include <iomanip>
-// #include <sstream>
-// #include <fstream>
 #include <string>
 #include <vector>
 #include <tuple>
 #include <array>
-// #include <unordered_map>
-// #include <utility>
-// #include <stdexcept>
-// #include <memory>
 
 #include <boost/program_options.hpp>
 
 #include <TFile.h>
 #include <TTree.h>
 #include <TChain.h>
-// #include <TDirectory.h>
-// #include <TH1.h>
 #include <TLorentzVector.h>
 
-// #include "BHEvent.h"
 #include "SJClusterAlg.h"
-#include "finder.h"
 #include "timed_counter.h"
 
 #define test(var) \

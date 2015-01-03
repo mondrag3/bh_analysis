@@ -19,12 +19,10 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
-#include <kiwi/csshists.h>
-
 #include "BHEvent.h"
 #include "SJClusterAlg.h"
-#include "finder.h"
 #include "timed_counter.h"
+#include "csshists.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -344,20 +342,19 @@ int main(int argc, char** argv)
   fout->cd();
 
   // Book histograms ************************************************
-  TH1* h_N   = hist::css->mkhist("N");
-  TH1* h_pid = hist::css->mkhist("pid");
-
-  hist_wt h_xs("xs"),
-          h_H_mass("H_mass"), h_H_pt("H_pT"), h_H_y("H_y")
-  ;
-
-  #define h_(name) h_##name(#name)
 
   /* NOTE:
    * excl = exactly the indicated number of jets, zero if no j in name
    * incl = that many or more jets
    * VBF = vector boson fusion cut
    */
+
+  #define h_(name) h_##name(#name)
+
+  TH1* h_N   = hist::css->mkhist("N");
+  TH1* h_pid = hist::css->mkhist("pid");
+
+  hist_wt h_(xs), h_(H_mass), h_(H_pT), h_(H_y);
 
   // Book Histograms
   hist_alg_wt
@@ -403,24 +400,18 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    // map particle pdg id to index number in the array
-    finder<Int_t> pdg(event.kf,event.nparticle);
-    size_t hi; // Higgs index
-
-    try {
-      hi = pdg(25,1); // find Higgs
-
-      numOK++; // count number of good events
-    } catch (exception& e) {
-      if (!quiet) {
-        cerr << "In event " << ent << ": ";
-        cerr << e.what() << endl;
-
-        for (Int_t i=0;i<event.nparticle;i++) cerr << event.kf[i] << ' ';
-        cerr << endl;
-
+    // Find Higgs
+    Int_t hi = 0; // Higgs index
+    while (hi<event.nparticle) {
+      if (event.kf[hi]==25) {
+        ++numOK;
+        break;
       }
-      continue; // skip to next event
+      else ++hi;
+    }
+    if (hi==event.nparticle) {
+      cerr << "No Higgs in event " << ent << endl;
+      continue;
     }
 
     h_N->Fill(0.5);
@@ -438,7 +429,7 @@ int main(int argc, char** argv)
     h_xs.Fill(0.5);
 
     h_H_mass.Fill(H_mass);
-    h_H_pt  .Fill(H_pt);
+    h_H_pT  .Fill(H_pt);
     h_H_y   .Fill(H_eta);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

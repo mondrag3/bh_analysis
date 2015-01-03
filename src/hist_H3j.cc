@@ -19,12 +19,10 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
-#include <kiwi/csshists.h>
-
 #include "BHEvent.h"
 #include "SJClusterAlg.h"
-#include "finder.h"
 #include "timed_counter.h"
+#include "csshists.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -405,24 +403,18 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    // map particle pdg id to index number in the array
-    finder<Int_t> pdg(event.kf,event.nparticle);
-    size_t hi; // Higgs index
-
-    try {
-      hi = pdg(25,1); // find Higgs
-
-      numOK++; // count number of good events
-    } catch (exception& e) {
-      if (!quiet) {
-        cerr << "In event " << ent << ": ";
-        cerr << e.what() << endl;
-
-        for (Int_t i=0;i<event.nparticle;i++) cerr << event.kf[i] << ' ';
-        cerr << endl;
-
+    // Find Higgs
+    Int_t hi = 0; // Higgs index
+    while (hi<event.nparticle) {
+      if (event.kf[hi]==25) {
+        ++numOK;
+        break;
       }
-      continue; // skip to next event
+      else ++hi;
+    }
+    if (hi==event.nparticle) {
+      cerr << "No Higgs in event " << ent << endl;
+      continue;
     }
 
     h_N->Fill(0.5);
