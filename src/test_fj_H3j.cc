@@ -115,14 +115,15 @@ int main(int argc, char** argv)
 
   cout << "Accepted " << selected << " of " << nent << " events" << endl;
   cout << "Ntuple weight" << endl;
-  cout << "σ = "
-       << showpoint << setprecision(6) << get<2>(_weight)/nent
-       << " pb" << endl;
+
+  cout.precision(15);
+  cout << showpoint;
+  cout << scientific;
+
+  cout << "σ = " << get<2>(_weight)/nent << " pb" << endl;
   for (auto& w : weight) {
     cout << get<0>(w) << endl;
-    cout << "σ = "
-         << showpoint << setprecision(6) << get<2>(w)/nent
-         << " pb" << endl;
+    cout << "σ = " << get<2>(w)/nent << " pb" << endl;
   }
 
   delete tree;

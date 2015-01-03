@@ -121,32 +121,45 @@ int main(int argc, char** argv)
 
   // pointers to calc (automatically collected)
   // (as well as argument pointers)
-  // auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
+  auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
   auto FacHt2 = mk_fac_calc(new mu_fHt_Higgs(0.5)/*,true*/);
-  // auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
-  //
-  // auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.));
+  auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
+
+  auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.),alphas_fcn::two_mH);
   auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5),alphas_fcn::two_mH);
-  // auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25));
+  auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25),alphas_fcn::two_mH);
 
+  auto Fac2MH = mk_fac_calc(new mu_const(125.*2.));
   auto FacMH  = mk_fac_calc(new mu_const(125.));
-  auto RenMH  = mk_ren_calc(new mu_const(125.),alphas_fcn::two_mH);
+  auto FacMH2 = mk_fac_calc(new mu_const(125./2.));
 
-  auto FacDef = mk_fac_calc(new mu_fac_default());
-  auto RenDef = mk_ren_calc(new mu_ren_default(),alphas_fcn::two_mH);
+  auto Ren2MH = mk_ren_calc(new mu_const(125.*2.),alphas_fcn::two_mH);
+  auto RenMH  = mk_ren_calc(new mu_const(125.),alphas_fcn::two_mH);
+  auto RenMH2 = mk_ren_calc(new mu_const(125./2.),alphas_fcn::two_mH);
+
+  // auto FacDef = mk_fac_calc(new mu_fac_default());
+  // auto RenDef = mk_ren_calc(new mu_ren_default(),alphas_fcn::two_mH);
 
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
-    new reweighter(FacHt2,RenHt2,tree/*,true*/),
-    new reweighter(FacDef,RenDef,tree/*,true*/),
+    // new reweighter(FacHt2,RenHt2,tree/*,true*/),
+    // new reweighter(FacDef,RenDef,tree/*,true*/),
     // new reweighter(FacHt2,RenHt1,tree),
     // new reweighter(FacHt2,RenHt4,tree),
     // new reweighter(FacHt4,RenHt2,tree),
     // new reweighter(FacHt4,RenHt4,tree),
     // new reweighter(FacHt1,RenHt1,tree),
     // new reweighter(FacHt1,RenHt2,tree)
-    new reweighter(FacMH,RenMH,tree)
+    // new reweighter(FacMH,RenMH,tree)
+
+    new reweighter(FacHt4,RenHt4,tree),
+    new reweighter(FacHt2,RenHt2,tree),
+    new reweighter(FacHt1,RenHt1,tree),
+
+    new reweighter(Fac2MH,Ren2MH,tree),
+    new reweighter(FacMH, RenMH, tree),
+    new reweighter(FacMH2,RenMH2,tree)
   };
 
   // Reading events from the input ntuple ***************************
@@ -160,8 +173,8 @@ int main(int argc, char** argv)
     counter(ent);
     tin->GetEntry(ent);
 
-    test(ent)
-    test(event.weight)
+    // test(ent)
+    // test(event.weight)
 
     // use event id for event number
     event.eid = ent;
