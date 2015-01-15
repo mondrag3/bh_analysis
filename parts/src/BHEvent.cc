@@ -10,6 +10,7 @@ void BHEvent::SetTree(TTree* tree, select_t branches, bool old) {
   switch (branches) {
     case kinematics: {
 
+      tree->SetBranchAddress("id", &eid);
       tree->SetBranchAddress("nparticle", &nparticle);
       tree->SetBranchAddress("px", px);
       tree->SetBranchAddress("py", py);
