@@ -29,17 +29,24 @@ int main(int argc, char** argv)
   BHEvent event;
   event.SetTree(tree);
 
-  cout << setw(4) << "id"
-       << setw(4) << "kf"
+  cout << setw(6) << "ent"
+       << setw(6) << "id"
+       << setw(4) << "kf" << setw(21) << ' '
+       << setw(8) << "weight"
        << endl;
+
+  cout << setprecision(6) << fixed << scientific << showpoint;
 
   const Long64_t end = min(tree->GetEntries(),first+num);
   for (Long64_t ent = first; ent < end; ++ent) {
     tree->GetEntry(ent);
 
-    cout << setw(4) << event.eid
-         << setw(4) << event.kf
-         << endl;
+    cout << setw(6) << ent;
+    cout << setw(6) << event.eid;
+    for (Int_t i=0;i<event.nparticle; ++i) cout << setw(4) << event.kf[i];
+    for (Int_t i=event.nparticle;i<6; ++i) cout << setw(4) << ' ';
+    cout << setw(15) << event.weight;
+    cout << endl;
 
   }
 
