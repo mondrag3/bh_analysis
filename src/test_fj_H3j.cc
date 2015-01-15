@@ -43,7 +43,7 @@ int main(int argc, char** argv)
   tuple<string,Double_t,Double_t> _weight;
   vector<tuple<string,Float_t,Double_t>> weight;
   {
-    get<0>(_weight)   = "weight";
+    get<0>(_weight) = "weight";
     const TObjArray *wts = wt_tree->GetListOfBranches();
     const Int_t nwts = wts->GetEntries();
     weight.resize(nwts);
