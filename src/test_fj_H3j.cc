@@ -73,6 +73,8 @@ int main(int argc, char** argv)
   timed_counter counter;
 
   Long64_t selected = 0;
+  Int_t prev_id = 0;
+  Int_t nevents = 0;
 
   for (Long64_t ent = 0; ent < nent; ++ent) {
     counter(ent);
@@ -108,6 +110,8 @@ int main(int argc, char** argv)
       for (auto& w : weight) get<2>(w) += get<1>(w);
       ++selected;
     }
+
+    if (prev_id!=event.eid) ++nevents;
   }
 
   counter.prt(nent);
@@ -120,10 +124,10 @@ int main(int argc, char** argv)
   cout << showpoint;
   cout << scientific;
 
-  cout << "σ = " << get<2>(_weight)/nent << " pb" << endl;
+  cout << "σ = " << get<2>(_weight)/nevents << " pb" << endl;
   for (auto& w : weight) {
     cout << get<0>(w) << endl;
-    cout << "σ = " << get<2>(w)/nent << " pb" << endl;
+    cout << "σ = " << get<2>(w)/nevents << " pb" << endl;
   }
 
   delete tree;
