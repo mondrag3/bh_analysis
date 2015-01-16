@@ -105,19 +105,20 @@ int main(int argc, char** argv)
       ++njets;
     }
 
-    if (njets>=3) {
-      get<2>(_weight) += get<1>(_weight);
-      for (auto& w : weight) get<2>(w) += get<1>(w);
-      ++selected;
+    if (prev_id!=event.eid) {
+      ++nevents;
+      if (njets>=3) {
+        get<2>(_weight) += get<1>(_weight);
+        for (auto& w : weight) get<2>(w) += get<1>(w);
+        ++selected;
+      }
     }
-
-    if (prev_id!=event.eid) ++nevents;
   }
 
   counter.prt(nent);
   cout << endl << endl;
 
-  cout << "Accepted " << selected << " of " << nent << " events" << endl;
+  cout << "Accepted " << selected << " of " << nevents << " events" << endl;
   cout << "Ntuple weight" << endl;
 
   cout.precision(15);
