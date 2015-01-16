@@ -11,9 +11,11 @@ ROOT_LIBS   := $(shell root-config --libs)
 LHAPDF_CFLAGS := $(shell lhapdf-config --cppflags)
 LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
+FJ_LIBS := -lfastjet
+
 .PHONY: all misc clean deepclean
 
-all: $(DIRS) bin/reweigh bin/hist_H2j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh
+all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh
 
 misc: $(DIRS) bin/cross_section bin/hist_weights bin/select_old_weight_hists bin/draw_together
 
@@ -56,9 +58,13 @@ bin/test_fj_H3j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lm -lfastjettools -lfastjet
 
-bin/hist_H2j bin/hist_H3j: bin/%: lib/%.o
+bin/hist_H2j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex
+
+bin/hist_H3j: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
+	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options -lboost_regex
 
 # EXE_OBJ dependencies
 lib/cross_section_bh.o: parts/include/BHEvent.h

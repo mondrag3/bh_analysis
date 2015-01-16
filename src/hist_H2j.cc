@@ -61,11 +61,11 @@ vector<unique_ptr<const weight>> weight::all;
 
 // Histogram wrappers ***********************************************
 struct hist {
-  static unique_ptr<const kiwi::csshists> css;
+  static unique_ptr<const csshists> css;
   static const SJClusterAlg* alg_ptr;
   virtual void Fill(Double_t x) noexcept =0;
 };
-unique_ptr<const kiwi::csshists> hist::css;
+unique_ptr<const csshists> hist::css;
 const SJClusterAlg* hist::alg_ptr;
 
 /*
@@ -318,7 +318,7 @@ int main(int argc, char** argv)
 
   // Read CSS file with histogram properties
   cout << "Histogram CSS file: " << css_file << endl;
-  hist::css.reset( new kiwi::csshists(css_file) );
+  hist::css.reset( new csshists(css_file) );
   cout << endl;
 
   // Open output file with histograms *******************************
