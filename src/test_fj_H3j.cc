@@ -105,13 +105,14 @@ int main(int argc, char** argv)
       ++njets;
     }
 
+    if (njets>=3) {
+      get<2>(_weight) += get<1>(_weight);
+      for (auto& w : weight) get<2>(w) += get<1>(w);
+    }
+
     if (prev_id!=event.eid) {
       ++nevents;
-      if (njets>=3) {
-        get<2>(_weight) += get<1>(_weight);
-        for (auto& w : weight) get<2>(w) += get<1>(w);
-        ++selected;
-      }
+      if (njets>=3) ++selected;
     }
     prev_id = event.eid;
   }
