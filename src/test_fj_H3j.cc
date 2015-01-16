@@ -73,7 +73,7 @@ int main(int argc, char** argv)
   timed_counter counter;
 
   Long64_t selected = 0;
-  Int_t prev_id = 0;
+  Int_t prev_id = -1;
   Int_t nevents = 0;
 
   for (Long64_t ent = 0; ent < nent; ++ent) {
@@ -105,19 +105,20 @@ int main(int argc, char** argv)
       ++njets;
     }
 
-    if (njets>=3) {
-      get<2>(_weight) += get<1>(_weight);
-      for (auto& w : weight) get<2>(w) += get<1>(w);
-      ++selected;
+    if (prev_id!=event.eid) {
+      ++nevents;
+      if (njets>=3) {
+        get<2>(_weight) += get<1>(_weight);
+        for (auto& w : weight) get<2>(w) += get<1>(w);
+        ++selected;
+      }
     }
-
-    if (prev_id!=event.eid) ++nevents;
   }
 
   counter.prt(nent);
   cout << endl << endl;
 
-  cout << "Accepted " << selected << " of " << nent << " events" << endl;
+  cout << "Accepted " << selected << " of " << nevents << " events" << endl;
   cout << "Ntuple weight" << endl;
 
   cout.precision(15);
