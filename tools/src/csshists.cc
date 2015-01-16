@@ -17,8 +17,6 @@ using namespace std;
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
-namespace kiwi {
-
 // Properties *******************************************************
 
 enum prop_t { kClass, kBins, kLineColor, kLineWidth };
@@ -249,7 +247,7 @@ csshists::csshists(const string& cssfilename)
       _impl->rules.back().second->insert( mkprop( prop_str ) );
     }
   }
-  
+
 
   // Test print
   //for (size_t i=0,n=_impl->rules.size();i<n;++i) {
@@ -338,5 +336,3 @@ TH1* csshists::mkhist(const string& name) const {
 // Destructor *******************************************************
 
 csshists::~csshists() { delete _impl; }
-
-} // end flock namespace

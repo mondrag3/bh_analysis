@@ -5,8 +5,6 @@
 
 class TH1;
 
-namespace kiwi {
-
 class csshists {
   class impl;
   impl *_impl;
@@ -17,7 +15,5 @@ public:
 
   TH1* mkhist(const std::string& name) const;
 };
-
-}
 
 #endif

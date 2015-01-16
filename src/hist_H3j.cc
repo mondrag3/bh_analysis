@@ -19,8 +19,9 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
+#include <fastjet/ClusterSequence.hh>
+
 #include "BHEvent.h"
-#include "SJClusterAlg.h"
 #include "timed_counter.h"
 #include "csshists.h"
 
@@ -47,6 +48,7 @@ struct weight {
   weight(TTree *tree, const string& name): name(name) {
     if ( tree->SetBranchAddress(name.c_str(), &w) == TTree::kMissingBranch )
       exit(1);
+      // I don't think this check actually works
   }
 
   static vector<unique_ptr<const weight>> all;
@@ -57,39 +59,19 @@ struct weight {
 };
 vector<unique_ptr<const weight>> weight::all;
 
-// TODO: place histograms in directories
-
 // Histogram wrappers ***********************************************
 struct hist {
-  static unique_ptr<const kiwi::csshists> css;
-  static const SJClusterAlg* alg_ptr;
+  static unique_ptr<const csshists> css;
   virtual void Fill(Double_t x) noexcept =0;
 };
-unique_ptr<const kiwi::csshists> hist::css;
-const SJClusterAlg* hist::alg_ptr;
-
-/*
-class hist_alg: public hist {
-  unordered_map<const SJClusterAlg*,TH1*> h;
-public:
-  hist_alg(const string& name) {
-    TH1* hist = css->mkhist(name);
-    for (auto& alg : SJClusterAlg::all)
-      h[alg.get()] = static_cast<TH1*>(
-        hist->Clone( (alg->name+"__"+name).c_str() )
-      );
-    delete hist;
-  }
-  virtual void Fill(Double_t x) noexcept { h[alg_ptr]->Fill(x); }
-};
-*/
+unique_ptr<const csshists> hist::css;
 
 class hist_wt: public hist {
   unordered_map<const weight*,TH1*> h;
 public:
   hist_wt(const string& name) {
     TH1* hist = css->mkhist(name);
-    hist->Sumw2(false); // in ROOT6 true seems to be the default
+    // hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& wt : weight::all) {
       const weight *w = wt.get();
       dirs[w]->cd();
@@ -106,66 +88,40 @@ public:
 };
 unordered_map<const weight*,TDirectory*> hist_wt::dirs;
 
-class hist_alg_wt: public hist {
-  typedef pair<const SJClusterAlg*,const weight*> key;
-  unordered_map<key,TH1*,pair_hash<key>> h;
-public:
-  hist_alg_wt(const string& name) {
-    TH1* hist = css->mkhist(name);
-    hist->Sumw2(false); // in ROOT6 true seems to be the default
-    for (auto& alg : SJClusterAlg::all) {
-      for (auto& wt : weight::all) {
-        const auto k = make_pair(alg.get(),wt.get());
-        dirs[k]->cd();
-        h.emplace(k, static_cast<TH1*>( hist->Clone() ) );
-      }
+// istream operators ************************************************
+namespace std {
+  template<class A, class B>
+  istream& operator>> (istream& is, pair<A,B>& r) {
+    string str;
+    is >> str;
+    const size_t sep = str.find(':');
+    if (sep==string::npos) {
+      r.first = 0;
+      stringstream(str) >> r.second;
+    } else {
+      stringstream(str.substr(0,sep)) >> r.first;
+      stringstream(str.substr(sep+1)) >> r.second;
     }
-    delete hist;
+    return is;
   }
-
-  virtual void Fill(Double_t x) noexcept {
-    key k(alg_ptr,nullptr);
-    for (auto& wt : weight::all) {
-      k.second = wt.get();
-      h[k]->Fill(x,wt->w);
-    }
-  }
-  virtual void FillOverflow() noexcept {
-    key k(alg_ptr,nullptr);
-    for (auto& wt : weight::all) {
-      k.second = wt.get();
-      TH1* _h = h[k];
-      Int_t obin = _h->GetNbinsX()+1;
-      _h->SetBinContent(obin,_h->GetBinContent(obin)+wt->w);
-    }
-  }
-
-  static unordered_map<key,TDirectory*,pair_hash<key>> dirs;
-};
-unordered_map<hist_alg_wt::key, TDirectory*,
-              pair_hash<hist_alg_wt::key>> hist_alg_wt::dirs;
-
-// istream range operator *******************************************
-template<typename T>
-struct range: public pair<T,T> {
-  range(): pair<T,T>(0,0) { }
-};
-template<typename T>
-istream& operator>> (istream& is, range<T>& r) {
-  string str;
-  is >> str;
-  const size_t sep = str.find(':');
-  if (sep==string::npos) {
-    r.first = 0;
-    stringstream(str) >> r.second;
-  } else {
-    stringstream(str.substr(0,sep)) >> r.first;
-    stringstream(str.substr(sep+1)) >> r.second;
-  }
-  return is;
 }
 
-// NOTE: Cannot make istream operator for std::pair work with boost::po
+struct cluster_alg { fastjet::JetAlgorithm alg; float r; };
+istream& operator>>(istream& in, cluster_alg& alg) {
+  string str;
+  in >> str;
+  string::iterator it = --str.end();
+  while (isdigit(*it)) --it;
+  ++it;
+  string name;
+  transform(str.begin(), it, back_inserter(name), ::tolower);
+  if (!name.compare("antikt")) alg.alg = fastjet::antikt_algorithm;
+  else if (!name.compare("kt")) alg.alg = fastjet::kt_algorithm;
+  else if (!name.compare("cambridge")) alg.alg = fastjet::cambridge_algorithm;
+  else throw runtime_error("Undefined jet clustering algorithm: "+name);
+  alg.r = atof( string(it,str.end()).c_str() )/10.;
+  return in;
+}
 
 // ******************************************************************
 
@@ -177,12 +133,15 @@ inline Double_t tau(Double_t j_pt, Double_t j_mass, Double_t j_eta, Double_t H_e
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  vector<string> bh_files, sj_files, wt_files,
-                 jet_algs, weights;
+  vector<string> bh_files, sj_files, wt_files, weights;
   string output_file, css_file;
   double pt_cut, eta_cut;
-  range<Long64_t> num_events;
+  pair<Long64_t,Long64_t> num_events;
   bool quiet;
+
+  cluster_alg jet_alg;
+  jet_alg.alg = antikt_algorithm;
+  jet_alg.r = 0.4;
 
   try {
     // General Options ------------------------------------
@@ -191,15 +150,12 @@ int main(int argc, char** argv)
       ("help,h", "produce help message")
       ("bh", po::value< vector<string> >(&bh_files)->required(),
        "add input BlackHat root file")
-      ("sj", po::value< vector<string> >(&sj_files)->required(),
-       "add input SpartyJet root file")
       ("wt", po::value< vector<string> >(&wt_files)->required(),
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
        "output root file with histograms")
-      ("jet-alg,j", po::value<vector<string>>(&jet_algs)
-       ->default_value({"AntiKt4"},"AntiKt4"),
-       "jet algorithms from SJ file")
+      ("cluster,c", po::value<cluster_alg>(&jet_alg),
+       "jet clustering algorithm:\ne.g. antikt4 (default), kt6")
       ("weight,w", po::value<vector<string>>(&weights),
        "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
        "if skipped, all weights from wt files are used")
@@ -210,7 +166,7 @@ int main(int argc, char** argv)
       ("style,s", po::value<string>(&css_file)
        ->default_value(CONFDIR"/Hj.css","Hj.css"),
        "CSS style file for histogram binning and formating")
-      ("num-events,n", po::value< range<Long64_t> >(&num_events),
+      ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
        "process only this many events, num or first:num")
       ("quiet,q", po::bool_switch(&quiet),
        "Do not print exception messages")
