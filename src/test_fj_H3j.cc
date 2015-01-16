@@ -113,6 +113,7 @@ int main(int argc, char** argv)
         ++selected;
       }
     }
+    prev_id = event.eid;
   }
 
   counter.prt(nent);
