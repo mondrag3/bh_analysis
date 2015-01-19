@@ -307,6 +307,7 @@ int main(int argc, char** argv)
 
   // Reading events from the input TChain ***************************
   Long64_t numOK = 0;
+  Int_t prev_id = -1;
   cout << "Reading " << num_events.second << " entries";
   if (num_events.first>0) cout << " starting at " << num_events.first << endl;
   else cout << endl;
@@ -318,7 +319,7 @@ int main(int argc, char** argv)
     tree->GetEntry(ent);
 
     if (event.nparticle>BHMAXNP) {
-      cerr << "More particles in the event then MAXNP" << endl
+      cerr << "More particles in the event then BHMAXNP" << endl
            << "Increase array length to " << event.nparticle << endl;
       exit(1);
     }
@@ -337,7 +338,9 @@ int main(int argc, char** argv)
       continue;
     }
 
-    h_N->Fill(0.5);
+    // Count number of events (not entries)
+    if (prev_id!=event.eid) h_N->Fill(0.5);
+    prev_id = event.eid;
 
     // Higgs 4-vector
     const TLorentzVector higgs(event.px[hi],event.py[hi],event.pz[hi],event.E[hi]);
