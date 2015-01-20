@@ -9,7 +9,7 @@
 #include <TBranch.h>
 #include <TH1.h>
 
-#include <kiwi/csshists.h>
+#include "csshists.h"
 
 using namespace std;
 
@@ -31,7 +31,7 @@ int main(int argc, char** argv)
   const TObjArray *brarr = tree->GetListOfBranches();
   const size_t numbr = brarr->GetEntries();
 
-  kiwi::csshists css(argv[2]);
+  csshists css(argv[2]);
 
   TFile *fout = new TFile(argv[3],"recreate");
 

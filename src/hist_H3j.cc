@@ -381,16 +381,14 @@ int main(int argc, char** argv)
     // Find Higgs
     Int_t hi = 0; // Higgs index
     while (hi<event.nparticle) {
-      if (event.kf[hi]==25) {
-        ++numOK;
-        break;
-      }
+      if (event.kf[hi]==25) break;
       else ++hi;
     }
     if (hi==event.nparticle) {
       cerr << "No Higgs in event " << ent << endl;
       continue;
     }
+    ++numOK;
 
     // Count number of events (not entries)
     if (prev_id!=event.eid) h_N->Fill(0.5);

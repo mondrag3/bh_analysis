@@ -13,11 +13,14 @@ LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
 FJ_LIBS := -lfastjet
 
-.PHONY: all misc clean deepclean
+.PHONY: all misc tools parts clean deepclean
 
 all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh
 
-misc: $(DIRS) bin/cross_section bin/hist_weights bin/select_old_weight_hists bin/draw_together
+misc: $(DIRS) bin/cross_section_hist bin/cross_section_bh bin/hist_weights bin/select_old_weight_hists bin/draw_together
+
+tools parts:
+	@$(MAKE) -C $@
 
 # directories rule
 lib bin:
@@ -76,7 +79,7 @@ lib/reweigh.o: tools/include/timed_counter.h parts/include/rew_calc.h parts/incl
 lib/hist_H2j.o lib/hist_H3j.o lib/test_H3j.o lib/test_fj_H3j.o: tools/include/timed_counter.h parts/include/BHEvent.h parts/include/SJClusterAlg.h
 lib/plot.o: tools/include/propmap.h
 
-lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.h
+lib/hist_weights.o lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.h
 
 # EXE dependencies
 bin/cross_section_bh: parts/lib/BHEvent.o
@@ -87,7 +90,7 @@ bin/reweigh: tools/lib/timed_counter.o parts/lib/rew_calc.o parts/lib/BHEvent.o
 
 bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.o parts/lib/BHEvent.o parts/lib/SJClusterAlg.o
 
-bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
+bin/hist_weights bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
 
 # tools rule
 tools/lib/%.o: tools/src/%.cc tools/include/%.h
