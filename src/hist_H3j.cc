@@ -23,6 +23,7 @@
 #include <fastjet/ClusterSequence.hh>
 
 #include "BHEvent.h"
+#include "SJClusterAlg.h"
 #include "timed_counter.h"
 #include "csshists.h"
 
@@ -45,17 +46,25 @@ struct pair_hash {
 // Weights collector ************************************************
 struct weight {
   string name;
-  Float_t w;
-  weight(TTree *tree, const string& name): name(name) {
-    if ( tree->SetBranchAddress(name.c_str(), &w) == TTree::kMissingBranch )
-      exit(1);
-      // I don't think this check actually works
+  union {
+    Double_t d;
+    Float_t f;
+  } w;
+  bool is_float;
+  weight(TTree *tree, const string& name, bool is_float=true)
+  : name(name), is_float(is_float)
+  {
+    TBranch* const br = tree->GetBranch(name.c_str());
+    if (br) {
+      if (is_float) br->SetAddress(&w.f);
+      else br->SetAddress(&w.d);
+    } else exit(1);
   }
 
   static vector<unique_ptr<const weight>> all;
 
-  static void add(TTree* tree, const string& name) {
-    all.emplace_back( new weight(tree,name) );
+  static void add(TTree* tree, const string& name, bool is_float=true) {
+    all.emplace_back( new weight(tree,name,is_float) );
   }
 };
 vector<unique_ptr<const weight>> weight::all;
@@ -82,7 +91,8 @@ public:
   }
 
   virtual void Fill(Double_t x) noexcept {
-    for (auto& wt : weight::all) h[wt.get()]->Fill(x,wt->w);
+    for (auto& wt : weight::all)
+      h[wt.get()]->Fill(x,wt->is_float ? wt->w.f : wt->w.d);
   }
 
   static unordered_map<const weight*,TDirectory*> dirs;
@@ -107,21 +117,21 @@ namespace std {
   }
 }
 
-struct cluster_alg { fastjet::JetAlgorithm alg; float r; };
-istream& operator>>(istream& in, cluster_alg& alg) {
-  string str;
-  in >> str;
+fastjet::JetDefinition* JetDef(string& str) {
   string::iterator it = --str.end();
   while (isdigit(*it)) --it;
   ++it;
   string name;
   transform(str.begin(), it, back_inserter(name), ::tolower);
-  if (!name.compare("antikt")) alg.alg = fastjet::antikt_algorithm;
-  else if (!name.compare("kt")) alg.alg = fastjet::kt_algorithm;
-  else if (!name.compare("cambridge")) alg.alg = fastjet::cambridge_algorithm;
+  fastjet::JetAlgorithm alg;
+  if (!name.compare("antikt")) alg = fastjet::antikt_algorithm;
+  else if (!name.compare("kt")) alg = fastjet::kt_algorithm;
+  else if (!name.compare("cambridge")) alg = fastjet::cambridge_algorithm;
   else throw runtime_error("Undefined jet clustering algorithm: "+name);
-  alg.r = atof( string(it,str.end()).c_str() )/10.;
-  return in;
+  return new fastjet::JetDefinition(
+    alg,
+    atof( string(it,str.end()).c_str() )/10.
+  );
 }
 
 // ******************************************************************
@@ -135,14 +145,12 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   vector<string> bh_files, sj_files, wt_files, weights;
-  string output_file, css_file;
+  string output_file, css_file, jet_alg;
   double pt_cut, eta_cut;
   pair<Long64_t,Long64_t> num_events;
   bool quiet;
 
-  cluster_alg jet_alg;
-  jet_alg.alg = fastjet::antikt_algorithm;
-  jet_alg.r = 0.4;
+  bool sj_given = false, wt_given = false;
 
   try {
     // General Options ------------------------------------
@@ -150,25 +158,30 @@ int main(int argc, char** argv)
     desc.add_options()
       ("help,h", "produce help message")
       ("bh", po::value< vector<string> >(&bh_files)->required(),
-       "add input BlackHat root file")
-      ("wt", po::value< vector<string> >(&wt_files)->required(),
+       "*add input BlackHat root file")
+      ("sj", po::value< vector<string> >(&sj_files),
+       "add input SpartyJet root file")
+      ("wt", po::value< vector<string> >(&wt_files),
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
-       "output root file with histograms")
-      ("cluster,c", po::value<cluster_alg>(&jet_alg),
-       "jet clustering algorithm:\ne.g. antikt4 (default), kt6")
+       "*output root file with histograms")
+      ("cluster,c", po::value<string>(&jet_alg)->default_value("AntiKt4"),
+       "jet clustering algorithm: e.g. antikt4, kt6\n"
+       "without --sj: select FastJet algorithm\n"
+       "with --sj: read jets from SpartyJet ntuple")
       ("weight,w", po::value<vector<string>>(&weights),
-       "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
-       "if skipped, all weights from wt files are used")
-      ("pt-cut", po::value<double>(&pt_cut)->default_value(30.),
-       "jet pT cut")
-      ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
-       "jet eta cut")
+       "weight branchs; if skipped:\n"
+       "  without --wt: ntuple weight is used\n"
+       "  with --wt: all weights from wt files")
+      ("jet-pt-cut", po::value<double>(&pt_cut)->default_value(30.),
+       "jet pT cut in GeV")
+      ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
+       "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
        ->default_value(CONFDIR"/Hj.css","Hj.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
-       "process only this many events, num or first:num")
+       "process only this many events,\nnum or first:num")
       ("quiet,q", po::bool_switch(&quiet),
        "Do not print exception messages")
     ;
@@ -180,6 +193,8 @@ int main(int argc, char** argv)
       return 0;
     }
     po::notify(vm);
+    if (vm.count("sj")) sj_given = true;
+    if (vm.count("wt")) wt_given = true;
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
@@ -189,11 +204,30 @@ int main(int argc, char** argv)
 
   // Setup input files **********************************************
   TChain*    tree = new TChain("t3");
-  TChain* wt_tree = new TChain("weights");
+  TChain* sj_tree = (sj_given ? new TChain("SpartyJet_Tree") : nullptr);
+  TChain* wt_tree = (wt_given ? new TChain("weights") : nullptr);
 
   // Add trees from all the files to the TChains
-  for (auto& f : bh_files) if (!   tree->AddFile(f.c_str(),-1) ) exit(1);
-  for (auto& f : wt_files) if (!wt_tree->AddFile(f.c_str(),-1) ) exit(1);
+  cout << "BH files:" << endl;
+  for (auto& f : bh_files) {
+    cout << "  " << f << endl;
+    if (!tree->AddFile(f.c_str(),-1) ) exit(1);
+  }
+  if (sj_given) {
+    cout << "SJ files:" << endl;
+    for (auto& f : sj_files) {
+      cout << "  " << f << endl;
+      if (!sj_tree->AddFile(f.c_str(),-1) ) exit(1);
+    }
+  }
+  if (wt_given) {
+    cout << "Weight files:" << endl;
+    for (auto& f : wt_files) {
+      cout << "  " << f << endl;
+      if (!wt_tree->AddFile(f.c_str(),-1) ) exit(1);
+    }
+  }
+  cout << endl;
 
   // Find number of events to process
   if (num_events.second>0) {
@@ -203,14 +237,24 @@ int main(int argc, char** argv)
          << ") then requested (" << need_events << ')' << endl;
       exit(1);
     }
-    if (need_events>wt_tree->GetEntries()) {
+    if (sj_given) if (need_events>sj_tree->GetEntries()) {
+      cerr << "Fewer entries in SJ chain (" << sj_tree->GetEntries()
+         << ") then requested (" << need_events << ')' << endl;
+      exit(1);
+    }
+    if (wt_given) if (need_events>wt_tree->GetEntries()) {
       cerr << "Fewer entries in weights chain (" << wt_tree->GetEntries()
          << ") then requested (" << need_events << ')' << endl;
       exit(1);
     }
   } else {
     num_events.second = tree->GetEntries();
-    if (num_events.second!=wt_tree->GetEntries()) {
+    if (sj_given) if (num_events.second!=sj_tree->GetEntries()) {
+      cerr << num_events.second << " entries in BH chain, but "
+           << sj_tree->GetEntries() << " entries in SJ chain" << endl;
+      exit(1);
+    }
+    if (wt_given) if (num_events.second!=wt_tree->GetEntries()) {
       cerr << num_events.second << " entries in BH chain, but "
            << wt_tree->GetEntries() << " entries in weights chain" << endl;
       exit(1);
@@ -218,28 +262,42 @@ int main(int argc, char** argv)
   }
 
   // Friend BlackHat tree with SpartyJet and Weight trees
-  tree->AddFriend(wt_tree,"weights");
+  if (sj_given) tree->AddFriend(sj_tree,"SJ");
+  if (wt_given) tree->AddFriend(wt_tree,"weights");
 
   // BlackHat tree branches
   BHEvent event;
   event.SetTree(tree, BHEvent::kinematics);
 
-  // Weights tree branches
-  if (weights.size()) {
-    cout << "Selected weights:" << endl;
-    for (auto& w : weights) {
-      cout << w << endl;
-      weight::add(tree,w);
-    }
+  // Jet Clustering Algorithm
+  unique_ptr<fastjet::JetDefinition> jet_def;
+  unique_ptr<SJClusterAlg> sj_alg;
+
+  if (sj_given) {
+    sj_alg.reset( new SJClusterAlg(tree,jet_alg) );
   } else {
-    cout << "Using all weights:" << endl;
-    const TObjArray *br = wt_tree->GetListOfBranches();
-    for (Int_t i=0,n=br->GetEntries();i<n;++i) {
-      auto w = br->At(i)->GetName();
-      cout << w << endl;
-      weight::add(tree,w);
-    }
+    jet_def.reset( JetDef(jet_alg) );
+    cout << "Clustering with " << jet_def->description() << endl << endl;
   }
+
+  // Weights tree branches
+  if (wt_given) {
+    if (weights.size()) {
+      cout << "Selected weights:" << endl;
+      for (auto& w : weights) {
+        cout << w << endl;
+        weight::add(tree,w);
+      }
+    } else {
+      cout << "Using all weights:" << endl;
+      const TObjArray *br = wt_tree->GetListOfBranches();
+      for (Int_t i=0,n=br->GetEntries();i<n;++i) {
+        auto w = br->At(i)->GetName();
+        cout << w << endl;
+        weight::add(tree,w);
+      }
+    }
+  } else weight::add(tree,"weight",false); // Use default ntuple weight
   cout << endl;
 
   // Read CSS file with histogram properties
@@ -301,10 +359,6 @@ int main(int argc, char** argv)
     h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
   ;
 
-  // Jet Clustering Algorithm
-  const fastjet::JetDefinition jet_def(jet_alg.alg,jet_alg.r);
-  cout << "\nClustering with " << jet_def.description() << endl << endl;
-
   // Reading events from the input TChain ***************************
   Long64_t numOK = 0;
   cout << "Reading " << num_events.second << " entries";
@@ -318,7 +372,7 @@ int main(int argc, char** argv)
     tree->GetEntry(ent);
 
     if (event.nparticle>BHMAXNP) {
-      cerr << "More particles in the event then MAXNP" << endl
+      cerr << "More particles in the event then BHMAXNP" << endl
            << "Increase array length to " << event.nparticle << endl;
       exit(1);
     }
@@ -342,9 +396,9 @@ int main(int argc, char** argv)
     // Higgs 4-vector
     const TLorentzVector higgs(event.px[hi],event.py[hi],event.pz[hi],event.E[hi]);
 
-    const Double_t H_mass = higgs.M();        // Higgs Mass
-    const Double_t H_pT   = higgs.Pt();       // Higgs Pt
-    const Double_t H_eta  = higgs.Rapidity(); // Higgs Rapidity
+    const Double_t H_mass = higgs.M();   // Higgs Mass
+    const Double_t H_pT   = higgs.Pt();  // Higgs Pt
+    const Double_t H_eta  = higgs.Eta(); // Higgs Pseudo-rapidity
 
     // Fill histograms ***********************************
     for (Int_t i=0;i<event.nparticle;i++) h_pid->Fill(event.kf[i]);
@@ -357,12 +411,15 @@ int main(int argc, char** argv)
 
     // Jet clustering *************************************
     vector<TLorentzVector> jets;
-    {
+    if (sj_given) { // Read jets from SpartyJet ntuple
+      jets = sj_alg->jetsByPt(pt_cut,eta_cut);
+
+    } else { // Clusted with FastJet on the fly
       vector<fastjet::PseudoJet> particles;
       particles.reserve(event.nparticle-1);
 
       for (Int_t i=0; i<event.nparticle; ++i) {
-        if (event.kf[i]==25) continue;
+        if (i==hi) continue;
         particles.emplace_back(
           event.px[i],event.py[i],event.pz[i],event.E[i]
         );
@@ -370,7 +427,7 @@ int main(int argc, char** argv)
 
       // Cluster, sort jets by pT, and apply pT cut
       const vector<fastjet::PseudoJet> fj_jets = sorted_by_pt(
-        fastjet::ClusterSequence(particles, jet_def).inclusive_jets(pt_cut)
+        fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut)
       );
 
       // Apply eta cut
@@ -412,7 +469,7 @@ int main(int argc, char** argv)
 
       for (auto& jet : jets) {
         const Double_t jet_pt  = jet.Pt();
-        const Double_t jet_tau = tau(jet_pt,jet.M(),jet.Rapidity(),H_eta);
+        const Double_t jet_tau = tau(jet_pt,jet.M(),jet.Eta(),H_eta);
 
         jets_HT += jet_pt;
 
@@ -429,7 +486,7 @@ int main(int argc, char** argv)
 
       const Double_t j1_mass = j1.M();
       const Double_t j1_pt   = j1.Pt();
-      const Double_t j1_eta  = j1.Rapidity();
+      const Double_t j1_eta  = j1.Eta();
 
       const Double_t Hj_pt = (higgs + j1).Pt();
 
@@ -453,7 +510,7 @@ int main(int argc, char** argv)
 
         const Double_t j2_mass = j2.M();
         const Double_t j2_pt   = j2.Pt();
-        const Double_t j2_eta  = j2.Rapidity();
+        const Double_t j2_eta  = j2.Eta();
 
         const TLorentzVector jj(j1+j2);
         const TLorentzVector Hjj(higgs + jj);
@@ -464,7 +521,7 @@ int main(int argc, char** argv)
         const Double_t Hjj_pt         = Hjj.Pt();
         const Double_t Hjj_mass       = Hjj.M();
         const Double_t deltay_j_j     = abs(j1_eta - j2_eta);
-        const Double_t H_jj_deltay    = abs(H_eta-jj.Rapidity());
+        const Double_t H_jj_deltay    = abs(H_eta-jj.Eta());
 
         h_j_j_deltaphi .Fill(deltaPhi_j_j);
         h_H_jj_deltaphi.Fill(deltaPhi_H_jj);
@@ -502,7 +559,7 @@ int main(int argc, char** argv)
 
           const Double_t j3_mass = j3.M();
           const Double_t j3_pt   = j3.Pt();
-          const Double_t j3_eta  = j3.Rapidity();
+          const Double_t j3_eta  = j3.Eta();
 
           h_jet3_pT.Fill(j3_pt);
           h_jet3_y .Fill(j3_eta);
@@ -526,6 +583,7 @@ int main(int argc, char** argv)
   fout->Close();
   delete fout;
   delete tree;
+  delete sj_tree;
   delete wt_tree;
 
   return 0;
