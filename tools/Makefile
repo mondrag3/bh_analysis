@@ -15,11 +15,11 @@ lib bin:
 	@mkdir -p $@
 
 # class object rules
-lib/timed_counter.o: lib/%.o: src/%.cc include/%.h
+lib/timed_counter.o: lib/%.o: src/%.cc include/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/csshists.o: lib/%.o: src/%.cc include/%.h
+lib/csshists.o: lib/%.o: src/%.cc include/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 

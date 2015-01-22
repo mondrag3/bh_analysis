@@ -9,7 +9,7 @@
 #include <TBranch.h>
 #include <TH1.h>
 
-#include "csshists.h"
+#include "csshists.hh"
 
 using namespace std;
 

@@ -20,11 +20,11 @@ lib bin:
 	@mkdir -p $@
 
 # class object rules
-lib/BHEvent.o lib/SJClusterAlg.o: lib/%.o: src/%.cc include/%.h
+lib/BHEvent.o lib/SJClusterAlg.o: lib/%.o: src/%.cc include/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/rew_calc.o: lib/%.o: src/%.cc include/%.h
+lib/rew_calc.o: lib/%.o: src/%.cc include/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -35,9 +35,9 @@ bin/test_rew_calc: bin/%: test/%.cc
 	 -Wl,--no-as-needed $(ROOT_LIBS) $(LHAPDF_LIBS) $(filter %.o,$^)
 
 # dependencies
-lib/rew_calc.o     : include/BHEvent.h
+lib/rew_calc.o     : include/BHEvent.hh
 
-bin/test_rew_calc  : include/BHEvent.h lib/rew_calc.o lib/BHEvent.o
+bin/test_rew_calc  : include/BHEvent.hh lib/rew_calc.o lib/BHEvent.o
 
 clean:
 	rm -rf lib/* bin/*

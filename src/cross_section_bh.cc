@@ -4,7 +4,7 @@
 #include <TFile.h>
 #include <TTree.h>
 
-#include "BHEvent.h"
+#include "BHEvent.hh"
 
 using namespace std;
 

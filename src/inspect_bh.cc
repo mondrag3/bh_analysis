@@ -6,7 +6,7 @@
 #include <TFile.h>
 #include <TTree.h>
 
-#include "BHEvent.h"
+#include "BHEvent.hh"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;

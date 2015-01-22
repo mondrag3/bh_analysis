@@ -1,4 +1,4 @@
-#include "SJClusterAlg.h"
+#include "SJClusterAlg.hh"
 
 #include <cmath>
 #include <cstdlib>

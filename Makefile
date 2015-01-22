@@ -70,16 +70,16 @@ bin/hist_H3j: bin/%: lib/%.o
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options -lboost_regex
 
 # EXE_OBJ dependencies
-lib/cross_section_bh.o: parts/include/BHEvent.h
-lib/inspect_bh.o: parts/include/BHEvent.h
-lib/test_rew_calc.o: parts/include/rew_calc.h parts/include/BHEvent.h
+lib/cross_section_bh.o: parts/include/BHEvent.hh
+lib/inspect_bh.o: parts/include/BHEvent.hh
+lib/test_rew_calc.o: parts/include/rew_calc.hh parts/include/BHEvent.hh
 
-lib/reweigh.o: tools/include/timed_counter.h parts/include/rew_calc.h parts/include/BHEvent.h
+lib/reweigh.o: tools/include/timed_counter.hh parts/include/rew_calc.hh parts/include/BHEvent.hh
 
-lib/hist_H2j.o lib/hist_H3j.o lib/test_H3j.o lib/test_fj_H3j.o: tools/include/timed_counter.h parts/include/BHEvent.h parts/include/SJClusterAlg.h
-lib/plot.o: tools/include/propmap.h
+lib/hist_H2j.o lib/hist_H3j.o lib/test_H3j.o lib/test_fj_H3j.o: tools/include/timed_counter.hh parts/include/BHEvent.hh parts/include/SJClusterAlg.hh
+lib/plot.o: tools/include/propmap.hh
 
-lib/hist_weights.o lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.h
+lib/hist_weights.o lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.hh
 
 # EXE dependencies
 bin/cross_section_bh: parts/lib/BHEvent.o
@@ -93,11 +93,11 @@ bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.
 bin/hist_weights bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
 
 # tools rule
-tools/lib/%.o: tools/src/%.cc tools/include/%.h
+tools/lib/%.o: tools/src/%.cc tools/include/%.hh
 	@$(MAKE) -C tools lib/$*.o
 
 # parts rule
-parts/lib/%.o: parts/src/%.cc parts/include/%.h
+parts/lib/%.o: parts/src/%.cc parts/include/%.hh
 	@$(MAKE) -C parts lib/$*.o
 
 clean:

@@ -13,8 +13,8 @@
 
 #include <fastjet/ClusterSequence.hh>
 
-#include "BHEvent.h"
-#include "timed_counter.h"
+#include "BHEvent.hh"
+#include "timed_counter.hh"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;

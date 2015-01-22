@@ -12,8 +12,8 @@
 #include <TChain.h>
 #include <TLorentzVector.h>
 
-#include "SJClusterAlg.h"
-#include "timed_counter.h"
+#include "SJClusterAlg.hh"
+#include "timed_counter.hh"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;

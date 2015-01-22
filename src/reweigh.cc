@@ -4,11 +4,11 @@
 
 #include <boost/program_options.hpp>
 
-#include "TFile.h"
-#include "TTree.h"
+#include <TFile.h>
+#include <TTree.h>
 
-#include "rew_calc.h"
-#include "timed_counter.h"
+#include "rew_calc.hh"
+#include "timed_counter.hh"
 
 using namespace std;
 namespace po = boost::program_options;

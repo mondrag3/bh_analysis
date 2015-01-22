@@ -1,4 +1,4 @@
-#include "timed_counter.h"
+#include "timed_counter.hh"
 
 #include <iostream>
 #include <iomanip>

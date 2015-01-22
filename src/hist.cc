@@ -331,11 +331,15 @@ int main(int argc, char** argv)
 
   // Book Histograms
   hist_wt
-    h_(xs), h_(H_mass), h_(H_pT), h_(H_y),
+    h_(xs),
 
     h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
 
-    h_(H_pT_excl),
+    h_(H_mass), h_(H_pT), h_(H_y),
+
+    h_(H_0j_pT), h_(H_0+j_pT),
+
+    h_(H_1j_pT), h_(H_1+j_pT), h_(jet1_pt),
 
     h_(jet1_pT), h_(jet1_pT_excl), h_(jet1_y), h_(jet1_tau),
     h_(jet2_pT), h_(jet2_y), h_(jet2_tau),

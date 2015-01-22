@@ -1,4 +1,4 @@
-#include "BHEvent.h"
+#include "BHEvent.hh"
 
 #include <cmath>
 

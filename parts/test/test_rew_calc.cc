@@ -3,7 +3,7 @@
 #include <TFile.h>
 #include <TTree.h>
 
-#include "rew_calc.h"
+#include "rew_calc.hh"
 
 using namespace std;
 

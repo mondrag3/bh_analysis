@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-#include "BHEvent.h"
+#include "BHEvent.hh"
 
 extern BHEvent event;
 

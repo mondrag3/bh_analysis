@@ -19,7 +19,7 @@
 #include <TAxis.h>
 #include <TGraphAsymmErrors.h>
 
-#include "propmap.h"
+#include "propmap.hh"
 
 using namespace std;
 namespace po = boost::program_options;

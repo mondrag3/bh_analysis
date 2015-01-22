@@ -12,7 +12,7 @@
 #include <TKey.h>
 #include <TH1.h>
 
-#include <kiwi/propmap.h>
+#include <propmap.hh>
 
 using namespace std;
 namespace po = boost::program_options;

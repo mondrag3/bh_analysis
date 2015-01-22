@@ -19,10 +19,10 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
-#include "BHEvent.h"
-#include "SJClusterAlg.h"
-#include "timed_counter.h"
-#include "csshists.h"
+#include "BHEvent.hh"
+#include "SJClusterAlg.hh"
+#include "timed_counter.hh"
+#include "csshists.hh"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;

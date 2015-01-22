@@ -1,4 +1,4 @@
-#include "rew_calc.h"
+#include "rew_calc.hh"
 
 #include <iostream>
 #include <sstream>
