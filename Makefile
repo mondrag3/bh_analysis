@@ -3,7 +3,7 @@ CPP := g++
 
 DIRS := lib bin
 
-CFLAGS := -std=c++11 -Wall -O3 -Itools/include -Iparts/include
+CFLAGS := -std=c++11 -Wall -g -Itools/include -Iparts/include
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -18,6 +18,8 @@ FJ_LIBS := -lfastjet
 all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh
 
 misc: $(DIRS) bin/cross_section_hist bin/cross_section_bh bin/hist_weights bin/select_old_weight_hists bin/draw_together
+
+test: bin/test_xml
 
 tools parts:
 	@$(MAKE) -C $@
@@ -37,6 +39,10 @@ lib/hist_H2j.o lib/hist_H3j.o: lib/%.o: src/%.cc
 		-c $(filter %.cc,$^) -o $@
 
 # executable rules
+bin/test_xml: bin/%: test/%.cc
+	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $^ -o $@
+
 bin/cross_section_bh bin/cross_section_hist bin/inspect_bh: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
