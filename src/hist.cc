@@ -24,8 +24,9 @@
 
 #include "BHEvent.hh"
 #include "SJClusterAlg.hh"
+#include "weight.hh"
 #include "timed_counter.hh"
-#include "csshists.hh"
+#include "xml_analysis.hh"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -34,70 +35,6 @@ using namespace std;
 namespace po = boost::program_options;
 
 template<typename T> inline T sq(const T& x) { return x*x; }
-
-template <typename T>
-struct pair_hash {
-  size_t operator()(const T &x ) const {
-    return hash<typename T::first_type >()(x.first ) ^
-           hash<typename T::second_type>()(x.second);
-  }
-};
-
-// Weights collector ************************************************
-struct weight {
-  string name;
-  union {
-    Double_t d;
-    Float_t f;
-  } w;
-  bool is_float;
-  weight(TTree *tree, const string& name, bool is_float=true)
-  : name(name), is_float(is_float)
-  {
-    TBranch* const br = tree->GetBranch(name.c_str());
-    if (br) {
-      if (is_float) br->SetAddress(&w.f);
-      else br->SetAddress(&w.d);
-    } else exit(1);
-  }
-
-  static vector<unique_ptr<const weight>> all;
-
-  static void add(TTree* tree, const string& name, bool is_float=true) {
-    all.emplace_back( new weight(tree,name,is_float) );
-  }
-};
-vector<unique_ptr<const weight>> weight::all;
-
-// Histogram wrappers ***********************************************
-struct hist {
-  static unique_ptr<const csshists> css;
-  virtual void Fill(Double_t x) noexcept =0;
-};
-unique_ptr<const csshists> hist::css;
-
-class hist_wt: public hist {
-  unordered_map<const weight*,TH1*> h;
-public:
-  hist_wt(const string& name) {
-    TH1* hist = css->mkhist(name);
-    // hist->Sumw2(false); // in ROOT6 true seems to be the default
-    for (auto& wt : weight::all) {
-      const weight *w = wt.get();
-      dirs[w]->cd();
-      h[w] = static_cast<TH1*>( hist->Clone() );
-    }
-    delete hist;
-  }
-
-  virtual void Fill(Double_t x) noexcept {
-    for (auto& wt : weight::all)
-      h[wt.get()]->Fill(x,wt->is_float ? wt->w.f : wt->w.d);
-  }
-
-  static unordered_map<const weight*,TDirectory*> dirs;
-};
-unordered_map<const weight*,TDirectory*> hist_wt::dirs;
 
 // istream operators ************************************************
 namespace std {
@@ -117,6 +54,7 @@ namespace std {
   }
 }
 
+// Parse FastJet jet definition *************************************
 fastjet::JetDefinition* JetDef(string& str) {
   string::iterator it = --str.end();
   while (isdigit(*it)) --it;
@@ -145,10 +83,8 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   vector<string> bh_files, sj_files, wt_files, weights;
-  string output_file, css_file, jet_alg;
-  double pt_cut, eta_cut;
+  string xml_file, output_file, css_file, jet_alg;
   pair<Long64_t,Long64_t> num_events;
-  bool quiet;
 
   bool sj_given = false, wt_given = false;
 
@@ -157,6 +93,8 @@ int main(int argc, char** argv)
     po::options_description desc("Options");
     desc.add_options()
       ("help,h", "produce help message")
+      ("analysis,a", po::value<string>(&xml_file)->required(),
+       "*analysis XML file")
       ("bh", po::value< vector<string> >(&bh_files)->required(),
        "*add input BlackHat root file")
       ("sj", po::value< vector<string> >(&sj_files),
@@ -173,17 +111,11 @@ int main(int argc, char** argv)
        "weight branchs; if skipped:\n"
        "  without --wt: ntuple weight is used\n"
        "  with --wt: all weights from wt files")
-      ("jet-pt-cut", po::value<double>(&pt_cut)->default_value(30.),
-       "jet pT cut in GeV")
-      ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
-       "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
        ->default_value(CONFDIR"/Hj.css","Hj.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
        "process only this many events,\nnum or first:num")
-      ("quiet,q", po::bool_switch(&quiet),
-       "Do not print exception messages")
     ;
 
     po::variables_map vm;
@@ -193,8 +125,8 @@ int main(int argc, char** argv)
       return 0;
     }
     po::notify(vm);
-    if (vm.count("sj")) sj_given = true;
-    if (vm.count("wt")) wt_given = true;
+    if (sj_files.size()) sj_given = true;
+    if (wt_files.size()) wt_given = true;
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;

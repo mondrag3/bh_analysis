@@ -1,23 +1,13 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <forward_list>
-#include <unordered_map>
-#include <stdexcept>
-
-#include <boost/optional.hpp>
+#include "xml_analysis.hh"
 
 #include "rapidxml-1.13/rapidxml.hpp"
 
-#define test(var) \
-  cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
+#include "weight.hh"
+#include "csshists.hh"
 
 using namespace std;
-
-namespace analysis_xml {
-  using namespace rapidxml;
+using namespace rapidxml;
+using boost::optional;
 
 inline xml_attribute<char>*
 safe_attribute(const xml_node<> *node, const char* name) {
@@ -34,14 +24,16 @@ inline int read_int(const xml_attribute<char> *attr) {
   if (attr) return atoi(attr->value());
   else return 0;
 }
-inline boost::optional<int> read_opt_int(const xml_attribute<char> *attr) {
+inline optional<int> read_opt_int(const xml_attribute<char> *attr) {
   if (attr) return atoi(attr->value());
   else return boost::none;
 }
-inline boost::optional<double> read_opt_double(const xml_attribute<char> *attr) {
+inline optional<double> read_opt_double(const xml_attribute<char> *attr) {
   if (attr) return atof(attr->value());
   else return boost::none;
 }
+
+// Particle struct **************************************************
 
 class particle;
 
@@ -51,20 +43,15 @@ void add_particles(const xml_node<> *node, forward_list<particle>& pl) {
        p = p->next_sibling("particle")) it = pl.emplace_after(it,p);
 }
 
-struct kinematics {
-  bool use_mass, use_pt, use_eta, use_phi, use_tau;
-  double mass, pt, eta, phi, tau;
-  kinematics()
-  : use_mass(false), use_pt(false), use_eta(false), use_phi(false),
-    use_tau(false)
-  { }
-};
+kinematics::kinematics()
+: use_mass(false), use_pt(false), use_eta(false), use_phi(false), use_tau(false)
+{ }
 
 struct particle {
 
   string name;
-  boost::optional<int> pid;
-  boost::optional<double> pt_cut, eta_cut;
+  optional<int> pid;
+  optional<double> pt_cut, eta_cut;
   forward_list<particle> daughters;
   mutable kinematics vars;
 
@@ -98,17 +85,37 @@ ostream& operator<<(ostream& out, const particle& p) {
   return out;
 }
 
-struct hist {
-  const double *var;
-};
+// Histogram wrappers ***********************************************
+hist::hist(const string& name, const double *var): var(var) {
+  TH1* hist = css->mkhist(name);
+  // hist->Sumw2(false); // in ROOT6 true seems to be the default
+  for (auto& wt : weight::all) {
+    const weight *w = wt.get();
+    dirs[w]->cd();
+    h[w] = static_cast<TH1*>( hist->Clone() );
+  }
+  delete hist;
+}
 
+virtual void hist::Fill(Double_t x) noexcept {
+  for (auto& wt : weight::all)
+    h[wt.get()]->Fill(x,wt->is_float ? wt->w.f : wt->w.d);
+}
+
+unique_ptr<const csshists> hist::css;
+unordered_map<const weight*,TDirectory*> hist::dirs;
+
+// Analysis definition **********************************************
 struct analysis_def {
-  boost::optional<double> jet_pt_cut, jet_eta_cut;
+  optional<double> jet_pt_cut, jet_eta_cut;
   forward_list<particle> particles;
   vector<kinematics> jets;
   vector<hist> hists;
 
-  analysis_def(const string& xml_file) {
+  analysis_def(const string& xml_file,
+               const BHEvent *event, const vector<TLorentzVector> *jets)
+  : event(event), jets_(jets)
+  {
     xml_document<> doc;
   	// Read the xml file into a vector
   	ifstream file(xml_file);
@@ -128,7 +135,8 @@ struct analysis_def {
     if (!jets_node) {
       cout << "Warning: No jets node in xml file " << xml_file << endl;
     }
-    jets.resize( read_int(safe_attribute(jets_node,"num")) );
+    njets = read_int(safe_attribute(jets_node,"num"));
+    jets.resize(njets);
     jet_pt_cut  = read_opt_double(jets_node->first_attribute("pt_cut"));
     jet_eta_cut = read_opt_double(jets_node->first_attribute("eta_cut"));
 
@@ -151,31 +159,3 @@ struct analysis_def {
     }
   }
 };
-
-}
-
-int main(int argc, char **argv)
-{
-  if (argc!=2) {
-    cout << "Usage: " << argv[0] << " file.xml" << endl;
-    exit(0);
-  }
-
-  cout << "XML file: " << argv[1] << endl;
-  const analysis_xml::analysis_def analysis(argv[1]);
-
-  cout << "\nParticles:" << endl;
-  for (auto& p : analysis.particles) cout << p;
-
-  // cout << *analysis_xml::particle::by_name["H"];
-  // cout << *analysis_xml::particle::by_name["W"];
-  // cout << *analysis_xml::particle::by_name["el"];
-  // cout << *analysis_xml::particle::by_name["nu"];
-
-  cout << "\nJets: " << analysis.jets.size();
-  if (analysis.jet_pt_cut) cout << " pt>" << *analysis.jet_pt_cut;
-  if (analysis.jet_eta_cut) cout << " |eta|<" << *analysis.jet_eta_cut;
-  cout << endl;
-
-  return 0;
-}
