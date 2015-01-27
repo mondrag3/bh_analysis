@@ -340,7 +340,7 @@ int main(int argc, char** argv)
   ;
 
   // Reading events from the input TChain ***************************
-  Long64_t numOK = 0;
+  Long64_t num_selected = 0;
   Int_t prev_id = -1;
   cout << "Reading " << num_events.second << " entries";
   if (num_events.first>0) cout << " starting at " << num_events.first << endl;
@@ -368,10 +368,12 @@ int main(int argc, char** argv)
       cerr << "No Higgs in event " << ent << endl;
       continue;
     }
-    ++numOK;
 
     // Count number of events (not entries)
-    if (prev_id!=event.eid) h_N->Fill(0.5);
+    if (prev_id!=event.eid) {
+      h_N->Fill(0.5);
+      ++num_selected;
+    }
     prev_id = event.eid;
 
     // Higgs 4-vector
@@ -534,7 +536,7 @@ int main(int argc, char** argv)
 
   counter.prt(num_events.second);
   cout << endl;
-  cout << "Successfully processed events: " << numOK << endl;
+  cout << "Successfully processed events: " << num_selected << endl;
 
   // Close files
   fout->Write();
