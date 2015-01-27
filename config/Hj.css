@@ -32,11 +32,15 @@ jet\d_tau {
 }
 
 \dj_mass {
-  Bins: 25 0 1000;
+  Bins: 25 0 200;
 }
 
 jet\d_mass {
-  Bins: 25 0 1000;
+  Bins: 25 0 100;
+}
+
+H\dj_mass {
+  Bins: 25 0 10;
 }
 
 .*_deltaphi(?:_.*)? {
@@ -48,7 +52,11 @@ H1j_pT(?:_.*)? {
 }
 
 H2j_pT(?:_.*)? {
-  Bins: 40 0 8;
+  Bins: 40 0 2;
+}
+
+H3j_pT(?:_.*)? {
+  Bins: 40 0 2;
 }
 
 loose {

@@ -516,6 +516,7 @@ int main(int argc, char** argv)
           const TLorentzVector H3j = H2j+(*jets[2].p);
           const Double_t H3j_pT = H3j.Pt();
 
+          h_H3j_mass .Fill(H3j.M());
           h_H3j_pT   .Fill(H3j_pT);
 
           if (njets==3) { // njets == 3; --------------------------=3
