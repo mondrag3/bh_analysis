@@ -12,7 +12,7 @@ LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 .PHONY: all clean
 
 all: lib bin \
-	   lib/BHEvent.o lib/rew_calc.o lib/SJClusterAlg.o \
+	   lib/BHEvent.o lib/rew_calc.o lib/SJClusterAlg.o lib/weight.o \
 		 bin/test_rew_calc
 
 # directories rule
@@ -20,7 +20,7 @@ lib bin:
 	@mkdir -p $@
 
 # class object rules
-lib/BHEvent.o lib/SJClusterAlg.o: lib/%.o: src/%.cc include/%.hh
+lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o: lib/%.o: src/%.cc include/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 

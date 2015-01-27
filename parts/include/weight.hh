@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-class TTree;
+#include <TTree.h>
 
 // Weights collector ************************************************
 

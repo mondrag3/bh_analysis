@@ -3,7 +3,7 @@ CPP := g++
 
 DIRS := lib bin
 
-CFLAGS := -std=c++11 -Wall -g -Itools/include -Iparts/include
+CFLAGS := -std=c++11 -Wall -O3 -Itools/include -Iparts/include
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -18,8 +18,6 @@ FJ_LIBS := -lfastjet
 all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh
 
 misc: $(DIRS) bin/cross_section_hist bin/cross_section_bh bin/hist_weights bin/select_old_weight_hists bin/draw_together
-
-test: bin/test_xml
 
 tools parts:
 	@$(MAKE) -C $@
@@ -39,10 +37,6 @@ lib/hist_H2j.o lib/hist_H3j.o: lib/%.o: src/%.cc
 		-c $(filter %.cc,$^) -o $@
 
 # executable rules
-bin/test_xml: bin/%: test/%.cc
-	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) $(CFLAGS) $^ -o $@
-
 bin/cross_section_bh bin/cross_section_hist bin/inspect_bh: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
@@ -83,6 +77,7 @@ lib/test_rew_calc.o: parts/include/rew_calc.hh parts/include/BHEvent.hh
 lib/reweigh.o: tools/include/timed_counter.hh parts/include/rew_calc.hh parts/include/BHEvent.hh
 
 lib/hist_H2j.o lib/hist_H3j.o lib/test_H3j.o lib/test_fj_H3j.o: tools/include/timed_counter.hh parts/include/BHEvent.hh parts/include/SJClusterAlg.hh
+lib/hist_H3j.o: parts/include/weight.hh
 lib/plot.o: tools/include/propmap.hh
 
 lib/hist_weights.o lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.hh
@@ -95,6 +90,7 @@ bin/test_rew_calc: parts/lib/rew_calc.o parts/lib/BHEvent.o
 bin/reweigh: tools/lib/timed_counter.o parts/lib/rew_calc.o parts/lib/BHEvent.o
 
 bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.o parts/lib/BHEvent.o parts/lib/SJClusterAlg.o
+bin/hist_H3j: parts/lib/weight.o
 
 bin/hist_weights bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
 

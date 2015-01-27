@@ -24,6 +24,7 @@
 
 #include "BHEvent.hh"
 #include "SJClusterAlg.hh"
+#include "weight.hh"
 #include "timed_counter.hh"
 #include "csshists.hh"
 
@@ -33,41 +34,7 @@
 using namespace std;
 namespace po = boost::program_options;
 
-template<typename T> inline T sq(const T& x) { return x*x; }
-
-template <typename T>
-struct pair_hash {
-  size_t operator()(const T &x ) const {
-    return hash<typename T::first_type >()(x.first ) ^
-           hash<typename T::second_type>()(x.second);
-  }
-};
-
-// Weights collector ************************************************
-struct weight {
-  string name;
-  union {
-    Double_t d;
-    Float_t f;
-  } w;
-  bool is_float;
-  weight(TTree *tree, const string& name, bool is_float=true)
-  : name(name), is_float(is_float)
-  {
-    TBranch* const br = tree->GetBranch(name.c_str());
-    if (br) {
-      if (is_float) br->SetAddress(&w.f);
-      else br->SetAddress(&w.d);
-    } else exit(1);
-  }
-
-  static vector<unique_ptr<const weight>> all;
-
-  static void add(TTree* tree, const string& name, bool is_float=true) {
-    all.emplace_back( new weight(tree,name,is_float) );
-  }
-};
-vector<unique_ptr<const weight>> weight::all;
+template<typename T> inline T sq(const T x) { return x*x; }
 
 // Histogram wrappers ***********************************************
 struct hist {
@@ -136,9 +103,20 @@ fastjet::JetDefinition* JetDef(string& str) {
 
 // ******************************************************************
 
-inline Double_t tau(Double_t j_pt, Double_t j_mass, Double_t j_eta, Double_t H_eta) {
-  return sqrt( sq(j_pt) + sq(j_mass) )/( 2.*cosh(j_eta - H_eta) );
-}
+struct Jet {
+private:
+  inline Double_t _tau(Double_t Eta) noexcept {
+    return sqrt( pT*pT + mass*mass )/( 2.*cosh(eta - Eta) );
+  }
+public:
+  Double_t mass, pT, eta, tau;
+  Jet(const TLorentzVector& p, Double_t Eta) noexcept
+  : mass(p.M()), pT(p.Pt()), eta(p.Eta()), tau(_tau(Eta))
+  { }
+  Jet(const fastjet::PseudoJet& p, Double_t Eta) noexcept
+  : mass(p.m()), pT(sqrt(p.kt2())), eta(p.eta()), tau(_tau(Eta))
+  { }
+};
 
 // ******************************************************************
 int main(int argc, char** argv)
@@ -331,31 +309,21 @@ int main(int argc, char** argv)
 
   // Book Histograms
   hist_wt
-    h_(xs), h_(H_mass), h_(H_pT), h_(H_y),
+    h_(H_mass),
 
-    h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
+    h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
 
-    h_(H_pT_excl),
+    h_(H_pT_3j), h_(H_pT_3j_excl), h_(H_eta_3j), h_(H_eta_3j_excl),
+    h_(jet3_mass), h_(jet3_pT), h_(jet3_eta), h_(jet3_tau),
 
-    h_(jet1_pT), h_(jet1_pT_excl), h_(jet1_y), h_(jet1_tau),
-    h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
-    h_(jet3_pT), h_(jet3_y), h_(jet3_tau),
+    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_eta_2j), h_(H_eta_2j_excl),
+    h_(jet2_mass), h_(jet2_pT), h_(jet2_eta), h_(jet2_tau),
 
-    h_(jj_mass),
-    h_(j_j_deltaphi), h_(j_j_deltaphi_excl), h_(j_j_deltaphi_VBF),
-    h_(j_j_deltay),
+    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_eta_1j), h_(H_eta_1j_excl),
+    h_(jet1_mass), h_(jet1_pT), h_(jet1_eta), h_(jet1_tau),
 
-    h_(H_j_pT), h_(H_j_pT_excl),
-    h_(Hj_pT), h_(Hj_pT_excl),
+    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_eta_0j), h_(H_eta_0j_excl),
 
-    h_(H_jj_pT), h_(H_jj_pT_excl), h_(Hjj_mass),
-    h_(H_jj_deltaphi), h_(H_jj_deltaphi_excl),
-    h_(H_jj_deltay),
-    h_(Hjj_pT), h_(Hjj_pT_excl),
-
-    h_(H_jjj_pT),
-
-    h_(loose), h_(tight),
     h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
   ;
 
@@ -404,16 +372,15 @@ int main(int argc, char** argv)
     // Fill histograms ***********************************
     for (Int_t i=0;i<event.nparticle;i++) h_pid->Fill(event.kf[i]);
 
-    h_xs.Fill(0.5);
-
-    h_H_mass.Fill(H_mass);
-    h_H_pT  .Fill(H_pT);
-    h_H_y   .Fill(H_eta);
+    h_H_mass  .Fill(H_mass);
+    h_H_pT_0j .Fill(H_pT);
+    h_H_eta_0j.Fill(H_eta);
 
     // Jet clustering *************************************
-    vector<TLorentzVector> jets;
+    vector<Jet> jets;
     if (sj_given) { // Read jets from SpartyJet ntuple
-      jets = sj_alg->jetsByPt(pt_cut,eta_cut);
+      for (auto& jet : sj_alg->jetsByPt(pt_cut,eta_cut))
+        jets.emplace_back(jet,H_eta);
 
     } else { // Clusted with FastJet on the fly
       vector<fastjet::PseudoJet> particles;
@@ -434,8 +401,7 @@ int main(int argc, char** argv)
       // Apply eta cut
       jets.reserve(fj_jets.size());
       for (auto& j : fj_jets) {
-        if (abs(j.eta()) < eta_cut)
-          jets.emplace_back(j.px(),j.py(),j.pz(),j.E());
+        if (abs(j.eta()) < eta_cut) jets.emplace_back(j,H_eta);
       }
     }
     const size_t njets = jets.size(); // number of jets
@@ -444,128 +410,85 @@ int main(int argc, char** argv)
 
     int njets50 = 0;
     for (auto& j : jets) {
-      if (j.Pt()>=50.) ++njets50;
+      if (j.pT>=50.) ++njets50;
       else break;
     }
 
     // Number of jets hists
-    h_NJet_excl.Fill(njets);
-    h_NJet_excl_50.Fill(njets50);
+    h_jets_N_excl.Fill(njets);
+    h_jets_N_excl_pT50.Fill(njets50);
     for (unsigned char i=0;i<4;i++) {
-      if (njets  >=i) h_NJet_incl   .Fill(i);
-      if (njets50>=i) h_NJet_incl_50.Fill(i);
+      if (njets >= i) {
+        h_jets_N_incl.Fill(i);
+        if (njets50 >= i) h_jets_N_incl_pT50.Fill(i);
+      }
     }
 
     if (njets==0) { // njets == 0;
 
-      h_H_pT_excl.Fill(H_pT);
+      h_H_pT_0j_excl.Fill(H_pT);
+      h_H_pT_0j_excl.Fill(H_eta);
 
     }
     else { // njets > 0;
 
-      Double_t jets_HT = 0;
-      static const Double_t jet_tau_cut=8;
-      Double_t max_tj=0;
-      Double_t sum_tj=0;
+      h_H_pT_1j  .Fill(H_pT);
+      h_H_eta_1j .Fill(H_eta);
+
+      h_jet1_mass.Fill(jets[0].mass);
+      h_jet1_pT  .Fill(jets[0].pT);
+      h_jet1_eta .Fill(jets[0].eta);
+      h_jet1_tau .Fill(jets[0].tau);
+
+      Double_t jets_HT = 0, jets_tau_max = 0, jets_tau_sum = 0;
 
       for (auto& jet : jets) {
-        const Double_t jet_pt  = jet.Pt();
-        const Double_t jet_tau = tau(jet_pt,jet.M(),jet.Eta(),H_eta);
-
-        jets_HT += jet_pt;
-
-        if ( jet_tau > jet_tau_cut ) {
-          sum_tj += jet_tau;
-          if (jet_tau > max_tj) max_tj = jet_tau;
-        }
+        jets_HT += jet.pT;
+        jets_tau_sum += jet.tau;
+        if (jet.tau > jets_tau_max) jets_tau_max = jet.tau;
       }
       h_jets_HT.Fill(jets_HT);
-      h_jets_tau_max.Fill(max_tj);
-      h_jets_tau_sum.Fill(sum_tj);
-
-      const TLorentzVector& j1 = jets[0]; // First jet
-
-      const Double_t j1_mass = j1.M();
-      const Double_t j1_pt   = j1.Pt();
-      const Double_t j1_eta  = j1.Eta();
-
-      const Double_t Hj_pt = (higgs + j1).Pt();
-
-      h_jet1_pT.Fill(j1_pt);
-      h_jet1_y .Fill(j1_eta);
-      h_Hj_pT  .Fill(Hj_pt);
-      h_H_j_pT .Fill(H_pT);
-
-      h_jet1_tau.Fill( tau(j1_pt,j1_mass,j1_eta,H_eta) );
+      h_jets_tau_max.Fill(jets_tau_max);
+      h_jets_tau_sum.Fill(jets_tau_sum);
 
       if (njets==1) { // njets == 1;
 
-        h_Hj_pT_excl  .Fill(Hj_pt);
-        h_H_j_pT_excl .Fill(H_pT);
-        h_jet1_pT_excl.Fill(j1_pt);
+        h_H_pT_1j_excl .Fill(H_pT);
+        h_H_eta_1j_excl.Fill(H_eta);
 
       }
       else { // njets > 1;
 
-        const TLorentzVector& j2 = jets[1]; // Second jet
+        h_H_pT_2j  .Fill(H_pT);
+        h_H_eta_2j .Fill(H_eta);
 
-        const Double_t j2_mass = j2.M();
-        const Double_t j2_pt   = j2.Pt();
-        const Double_t j2_eta  = j2.Eta();
+        h_jet2_mass.Fill(jets[1].mass);
+        h_jet2_pT  .Fill(jets[1].pT);
+        h_jet2_eta .Fill(jets[1].eta);
+        h_jet2_tau .Fill(jets[1].tau);
 
-        const TLorentzVector jj(j1+j2);
-        const TLorentzVector Hjj(higgs + jj);
+        if (njets==2) { // njets == 1;
 
-        const Double_t jj_mass        = jj.M();
-        const Double_t deltaPhi_j_j   = j1.Phi() - j2.Phi();
-        const Double_t deltaPhi_H_jj  = higgs.Phi() - jj.Phi();
-        const Double_t Hjj_pt         = Hjj.Pt();
-        const Double_t Hjj_mass       = Hjj.M();
-        const Double_t deltay_j_j     = abs(j1_eta - j2_eta);
-        const Double_t H_jj_deltay    = abs(H_eta-jj.Eta());
-
-        h_j_j_deltaphi .Fill(deltaPhi_j_j);
-        h_H_jj_deltaphi.Fill(deltaPhi_H_jj);
-        h_Hjj_pT       .Fill(Hjj_pt);
-        h_H_jj_pT      .Fill(H_pT);
-        h_jet2_pT      .Fill(j2_pt);
-        h_jet2_y       .Fill(j2_eta);
-        h_jj_mass      .Fill(jj_mass);
-        h_Hjj_mass     .Fill(Hjj_mass);
-        h_j_j_deltay   .Fill(deltay_j_j);
-        h_H_jj_deltay  .Fill(H_jj_deltay);
-
-        if (deltay_j_j>2.8) {
-          if (jj_mass>400) {
-            h_j_j_deltaphi_VBF.Fill(deltaPhi_H_jj);
-            h_loose.Fill(1);
-            if (deltaPhi_H_jj>2.6) h_tight.Fill(1);
-          }
-        }
-
-        h_jet2_tau.Fill( tau(j2_pt,j2_mass,j2_eta,H_eta) );
-
-        if (njets==2) { // njets == 2;
-
-          h_j_j_deltaphi_excl  .Fill(deltaPhi_j_j);
-          h_H_jj_deltaphi_excl .Fill(deltaPhi_H_jj);
-          h_Hjj_pT_excl        .Fill(Hjj_pt);
-          h_H_jj_pT_excl       .Fill(H_pT);
+          h_H_pT_2j_excl .Fill(H_pT);
+          h_H_eta_2j_excl.Fill(H_eta);
 
         }
         else { // njets > 2;
-          const TLorentzVector& j3 = jets[2]; // Second jet
 
-          h_H_jjj_pT.Fill(H_pT);
+          h_H_pT_3j  .Fill(H_pT);
+          h_H_eta_3j .Fill(H_eta);
 
-          const Double_t j3_mass = j3.M();
-          const Double_t j3_pt   = j3.Pt();
-          const Double_t j3_eta  = j3.Eta();
+          h_jet3_mass.Fill(jets[2].mass);
+          h_jet3_pT  .Fill(jets[2].pT);
+          h_jet3_eta .Fill(jets[2].eta);
+          h_jet3_tau .Fill(jets[2].tau);
 
-          h_jet3_pT.Fill(j3_pt);
-          h_jet3_y .Fill(j3_eta);
+          if (njets==3) { // njets == 1;
 
-          h_jet3_tau.Fill( tau(j3_pt,j3_mass,j3_eta,H_eta) );
+            h_H_pT_3j_excl .Fill(H_pT);
+            h_H_eta_3j_excl.Fill(H_eta);
+
+          }
 
         } // END njets > 2;
 

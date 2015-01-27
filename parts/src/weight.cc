@@ -1,10 +1,8 @@
 #include "weight.hh"
 
-#include <TTree.h>
-
 using namespace std;
 
-weight::weight(TTree *tree, const string& name, bool is_float=true)
+weight::weight(TTree *tree, const string& name, bool is_float)
 : name(name), is_float(is_float)
 {
   TBranch* const br = tree->GetBranch(name.c_str());
