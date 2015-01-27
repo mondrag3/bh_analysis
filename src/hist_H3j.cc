@@ -392,10 +392,9 @@ int main(int argc, char** argv)
     vector<Jet> jets;
     if (sj_given) { // Read jets from SpartyJet ntuple
       const vector<TLorentzVector> sj_jets = sj_alg->jetsByPt(pt_cut,eta_cut);
-      const bool has3jets = ( sj_jets.size()>2 );
       jets.reserve(sj_jets.size());
       for (auto& jet : sj_jets) {
-        jets.emplace_back(jet,H_y,has3jets && (jets.size()<3));
+        jets.emplace_back(jet,H_y,jets.size()<3);
       }
 
     } else { // Clusted with FastJet on the fly
@@ -413,13 +412,12 @@ int main(int argc, char** argv)
       const vector<fastjet::PseudoJet> fj_jets = sorted_by_pt(
         fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut)
       );
-      const bool has3jets = ( fj_jets.size()>2 );
 
       // Apply eta cut
       jets.reserve(fj_jets.size());
       for (auto& jet : fj_jets) {
         if (abs(jet.eta()) < eta_cut)
-          jets.emplace_back(jet,H_y,has3jets && (jets.size()<2));
+          jets.emplace_back(jet,H_y,jets.size()<3);
       }
     }
     const size_t njets = jets.size(); // number of jets
