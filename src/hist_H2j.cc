@@ -9,6 +9,7 @@
 #include <utility>
 #include <stdexcept>
 #include <memory>
+#include <algorithm>
 
 #include <boost/program_options.hpp>
 
@@ -19,8 +20,11 @@
 #include <TH1.h>
 #include <TLorentzVector.h>
 
+#include <fastjet/ClusterSequence.hh>
+
 #include "BHEvent.hh"
 #include "SJClusterAlg.hh"
+#include "weight.hh"
 #include "timed_counter.hh"
 #include "csshists.hh"
 
@@ -30,66 +34,21 @@
 using namespace std;
 namespace po = boost::program_options;
 
-template<typename T> inline T sq(const T& x) { return x*x; }
-
-template <typename T>
-struct pair_hash {
-  size_t operator()(const T &x ) const {
-    return hash<typename T::first_type >()(x.first ) ^
-           hash<typename T::second_type>()(x.second);
-  }
-};
-
-// Weights collector ************************************************
-struct weight {
-  string name;
-  Float_t w;
-  weight(TTree *tree, const string& name): name(name) {
-    if ( tree->SetBranchAddress(name.c_str(), &w) == TTree::kMissingBranch )
-      exit(1);
-  }
-
-  static vector<unique_ptr<const weight>> all;
-
-  static void add(TTree* tree, const string& name) {
-    all.emplace_back( new weight(tree,name) );
-  }
-};
-vector<unique_ptr<const weight>> weight::all;
-
-// TODO: place histograms in directories
+template<typename T> inline T sq(const T x) { return x*x; }
 
 // Histogram wrappers ***********************************************
 struct hist {
   static unique_ptr<const csshists> css;
-  static const SJClusterAlg* alg_ptr;
   virtual void Fill(Double_t x) noexcept =0;
 };
 unique_ptr<const csshists> hist::css;
-const SJClusterAlg* hist::alg_ptr;
-
-/*
-class hist_alg: public hist {
-  unordered_map<const SJClusterAlg*,TH1*> h;
-public:
-  hist_alg(const string& name) {
-    TH1* hist = css->mkhist(name);
-    for (auto& alg : SJClusterAlg::all)
-      h[alg.get()] = static_cast<TH1*>(
-        hist->Clone( (alg->name+"__"+name).c_str() )
-      );
-    delete hist;
-  }
-  virtual void Fill(Double_t x) noexcept { h[alg_ptr]->Fill(x); }
-};
-*/
 
 class hist_wt: public hist {
   unordered_map<const weight*,TH1*> h;
 public:
   hist_wt(const string& name) {
     TH1* hist = css->mkhist(name);
-    hist->Sumw2(false); // in ROOT6 true seems to be the default
+    // hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& wt : weight::all) {
       const weight *w = wt.get();
       dirs[w]->cd();
@@ -99,90 +58,82 @@ public:
   }
 
   virtual void Fill(Double_t x) noexcept {
-    for (auto& wt : weight::all) h[wt.get()]->Fill(x,wt->w);
+    for (auto& wt : weight::all)
+      h[wt.get()]->Fill(x,wt->is_float ? wt->w.f : wt->w.d);
   }
 
   static unordered_map<const weight*,TDirectory*> dirs;
 };
 unordered_map<const weight*,TDirectory*> hist_wt::dirs;
 
-class hist_alg_wt: public hist {
-  typedef pair<const SJClusterAlg*,const weight*> key;
-  unordered_map<key,TH1*,pair_hash<key>> h;
-public:
-  hist_alg_wt(const string& name) {
-    TH1* hist = css->mkhist(name);
-    hist->Sumw2(false); // in ROOT6 true seems to be the default
-    for (auto& alg : SJClusterAlg::all) {
-      for (auto& wt : weight::all) {
-        const auto k = make_pair(alg.get(),wt.get());
-        dirs[k]->cd();
-        h.emplace(k, static_cast<TH1*>( hist->Clone() ) );
-      }
+// istream operators ************************************************
+namespace std {
+  template<class A, class B>
+  istream& operator>> (istream& is, pair<A,B>& r) {
+    string str;
+    is >> str;
+    const size_t sep = str.find(':');
+    if (sep==string::npos) {
+      r.first = 0;
+      stringstream(str) >> r.second;
+    } else {
+      stringstream(str.substr(0,sep)) >> r.first;
+      stringstream(str.substr(sep+1)) >> r.second;
     }
-    delete hist;
+    return is;
   }
-
-  virtual void Fill(Double_t x) noexcept {
-    key k(alg_ptr,nullptr);
-    for (auto& wt : weight::all) {
-      k.second = wt.get();
-      h[k]->Fill(x,wt->w);
-    }
-  }
-  virtual void FillOverflow() noexcept {
-    key k(alg_ptr,nullptr);
-    for (auto& wt : weight::all) {
-      k.second = wt.get();
-      TH1* _h = h[k];
-      Int_t obin = _h->GetNbinsX()+1;
-      _h->SetBinContent(obin,_h->GetBinContent(obin)+wt->w);
-    }
-  }
-
-  static unordered_map<key,TDirectory*,pair_hash<key>> dirs;
-};
-unordered_map<hist_alg_wt::key, TDirectory*,
-              pair_hash<hist_alg_wt::key>> hist_alg_wt::dirs;
-
-// istream range operator *******************************************
-template<typename T>
-struct range: public pair<T,T> {
-  range(): pair<T,T>(0,0) { }
-};
-template<typename T>
-istream& operator>> (istream& is, range<T>& r) {
-  string str;
-  is >> str;
-  const size_t sep = str.find(':');
-  if (sep==string::npos) {
-    r.first = 0;
-    stringstream(str) >> r.second;
-  } else {
-    stringstream(str.substr(0,sep)) >> r.first;
-    stringstream(str.substr(sep+1)) >> r.second;
-  }
-  return is;
 }
 
-// NOTE: Cannot make istream operator for std::pair work with boost::po
+fastjet::JetDefinition* JetDef(string& str) {
+  string::iterator it = --str.end();
+  while (isdigit(*it)) --it;
+  ++it;
+  string name;
+  transform(str.begin(), it, back_inserter(name), ::tolower);
+  fastjet::JetAlgorithm alg;
+  if (!name.compare("antikt")) alg = fastjet::antikt_algorithm;
+  else if (!name.compare("kt")) alg = fastjet::kt_algorithm;
+  else if (!name.compare("cambridge")) alg = fastjet::cambridge_algorithm;
+  else throw runtime_error("Undefined jet clustering algorithm: "+name);
+  return new fastjet::JetDefinition(
+    alg,
+    atof( string(it,str.end()).c_str() )/10.
+  );
+}
 
 // ******************************************************************
 
-inline Double_t tau(Double_t j_pt, Double_t j_mass, Double_t j_eta, Double_t H_eta) {
-  return sqrt( sq(j_pt) + sq(j_mass) )/( 2.*cosh(j_eta - H_eta) );
-}
+struct Jet {
+private:
+  inline Double_t _tau(Double_t Y) noexcept {
+    // need rapidity here
+    return sqrt( pT*pT + mass*mass )/( 2.*cosh(y - Y) );
+  }
+public:
+  TLorentzVector *p;
+  Double_t mass, pT, y, tau;
+  Jet(const TLorentzVector& p, Double_t Y, bool keep=false) noexcept
+  : p(keep ? new TLorentzVector(p) : nullptr),
+    mass(p.M()), pT(p.Pt()), y(p.Rapidity()), tau(_tau(Y))
+  { }
+  Jet(const fastjet::PseudoJet& p, Double_t Y, bool keep=false) noexcept
+  : p(keep ? new TLorentzVector(p.px(),p.py(),p.pz(),p.E()) : nullptr),
+    mass(p.m()), pT(sqrt(p.kt2())), y(p.rapidity()), tau(_tau(Y))
+  { }
+  ~Jet() { delete p; }
+};
 
 // ******************************************************************
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  vector<string> bh_files, sj_files, wt_files,
-                 jet_algs, weights;
-  string output_file, css_file;
+  vector<string> bh_files, sj_files, wt_files, weights;
+  string output_file, css_file, jet_alg;
   double pt_cut, eta_cut;
-  range<Long64_t> num_events;
+  pair<Long64_t,Long64_t> num_events;
   bool quiet;
+
+  bool sj_given = false, wt_given = false;
 
   try {
     // General Options ------------------------------------
@@ -190,28 +141,30 @@ int main(int argc, char** argv)
     desc.add_options()
       ("help,h", "produce help message")
       ("bh", po::value< vector<string> >(&bh_files)->required(),
-       "add input BlackHat root file")
-      ("sj", po::value< vector<string> >(&sj_files)->required(),
+       "*add input BlackHat root file")
+      ("sj", po::value< vector<string> >(&sj_files),
        "add input SpartyJet root file")
-      ("wt", po::value< vector<string> >(&wt_files)->required(),
+      ("wt", po::value< vector<string> >(&wt_files),
        "add input weights root file")
       ("output,o", po::value<string>(&output_file)->required(),
-       "output root file with histograms")
-      ("jet-alg,j", po::value<vector<string>>(&jet_algs)
-       ->default_value({"AntiKt4"},"AntiKt4"),
-       "jet algorithms from SJ file")
+       "*output root file with histograms")
+      ("cluster,c", po::value<string>(&jet_alg)->default_value("AntiKt4"),
+       "jet clustering algorithm: e.g. antikt4, kt6\n"
+       "without --sj: select FastJet algorithm\n"
+       "with --sj: read jets from SpartyJet ntuple")
       ("weight,w", po::value<vector<string>>(&weights),
-       "weight branch from weights file, e.g. Fac0.5Ht_Ren0.5Ht_PDFCT10_cent; "
-       "if skipped, all weights from wt files are used")
-      ("pt-cut", po::value<double>(&pt_cut)->default_value(30.),
-       "jet pT cut")
-      ("eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
-       "jet eta cut")
+       "weight branchs; if skipped:\n"
+       "  without --wt: ntuple weight is used\n"
+       "  with --wt: all weights from wt files")
+      ("jet-pt-cut", po::value<double>(&pt_cut)->default_value(30.),
+       "jet pT cut in GeV")
+      ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
+       "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
-       ->default_value(CONFDIR"/H2j.css","H2j.css"),
+       ->default_value(CONFDIR"/Hj.css","Hj.css"),
        "CSS style file for histogram binning and formating")
-      ("num-events,n", po::value< range<Long64_t> >(&num_events),
-       "process only this many events, num or first:num")
+      ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
+       "process only this many events,\nnum or first:num")
       ("quiet,q", po::bool_switch(&quiet),
        "Do not print exception messages")
     ;
@@ -223,6 +176,8 @@ int main(int argc, char** argv)
       return 0;
     }
     po::notify(vm);
+    if (vm.count("sj")) sj_given = true;
+    if (vm.count("wt")) wt_given = true;
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
@@ -232,13 +187,30 @@ int main(int argc, char** argv)
 
   // Setup input files **********************************************
   TChain*    tree = new TChain("t3");
-  TChain* sj_tree = new TChain("SpartyJet_Tree");
-  TChain* wt_tree = new TChain("weights");
+  TChain* sj_tree = (sj_given ? new TChain("SpartyJet_Tree") : nullptr);
+  TChain* wt_tree = (wt_given ? new TChain("weights") : nullptr);
 
   // Add trees from all the files to the TChains
-  for (auto& f : bh_files) if (!   tree->AddFile(f.c_str(),-1) ) exit(1);
-  for (auto& f : sj_files) if (!sj_tree->AddFile(f.c_str(),-1) ) exit(1);
-  for (auto& f : wt_files) if (!wt_tree->AddFile(f.c_str(),-1) ) exit(1);
+  cout << "BH files:" << endl;
+  for (auto& f : bh_files) {
+    cout << "  " << f << endl;
+    if (!tree->AddFile(f.c_str(),-1) ) exit(1);
+  }
+  if (sj_given) {
+    cout << "SJ files:" << endl;
+    for (auto& f : sj_files) {
+      cout << "  " << f << endl;
+      if (!sj_tree->AddFile(f.c_str(),-1) ) exit(1);
+    }
+  }
+  if (wt_given) {
+    cout << "Weight files:" << endl;
+    for (auto& f : wt_files) {
+      cout << "  " << f << endl;
+      if (!wt_tree->AddFile(f.c_str(),-1) ) exit(1);
+    }
+  }
+  cout << endl;
 
   // Find number of events to process
   if (num_events.second>0) {
@@ -248,24 +220,24 @@ int main(int argc, char** argv)
          << ") then requested (" << need_events << ')' << endl;
       exit(1);
     }
-    if (need_events>sj_tree->GetEntries()) {
+    if (sj_given) if (need_events>sj_tree->GetEntries()) {
       cerr << "Fewer entries in SJ chain (" << sj_tree->GetEntries()
          << ") then requested (" << need_events << ')' << endl;
       exit(1);
     }
-    if (need_events>wt_tree->GetEntries()) {
+    if (wt_given) if (need_events>wt_tree->GetEntries()) {
       cerr << "Fewer entries in weights chain (" << wt_tree->GetEntries()
          << ") then requested (" << need_events << ')' << endl;
       exit(1);
     }
   } else {
     num_events.second = tree->GetEntries();
-    if (num_events.second!=sj_tree->GetEntries()) {
+    if (sj_given) if (num_events.second!=sj_tree->GetEntries()) {
       cerr << num_events.second << " entries in BH chain, but "
            << sj_tree->GetEntries() << " entries in SJ chain" << endl;
       exit(1);
     }
-    if (num_events.second!=wt_tree->GetEntries()) {
+    if (wt_given) if (num_events.second!=wt_tree->GetEntries()) {
       cerr << num_events.second << " entries in BH chain, but "
            << wt_tree->GetEntries() << " entries in weights chain" << endl;
       exit(1);
@@ -273,47 +245,42 @@ int main(int argc, char** argv)
   }
 
   // Friend BlackHat tree with SpartyJet and Weight trees
-  tree->AddFriend(sj_tree,"SJ");
-  tree->AddFriend(wt_tree,"weights");
+  if (sj_given) tree->AddFriend(sj_tree,"SJ");
+  if (wt_given) tree->AddFriend(wt_tree,"weights");
 
   // BlackHat tree branches
   BHEvent event;
   event.SetTree(tree, BHEvent::kinematics);
 
-  // SpartyJet tree branches
-  if (jet_algs.size()) {
-    cout << "Selected jet clustering algorithms:" << endl;
-    for (auto& j : jet_algs) {
-      cout << j << endl;
-      SJClusterAlg::add(tree,j);
-    }
+  // Jet Clustering Algorithm
+  unique_ptr<fastjet::JetDefinition> jet_def;
+  unique_ptr<SJClusterAlg> sj_alg;
+
+  if (sj_given) {
+    sj_alg.reset( new SJClusterAlg(tree,jet_alg) );
   } else {
-    cout << "Using all jet clustering algorithms:" << endl;
-    const TObjArray *br = sj_tree->GetListOfBranches();
-    for (Int_t i=0,n=br->GetEntries();i<n;++i) {
-      auto j = br->At(i)->GetName();
-      cout << j << endl;
-      SJClusterAlg::add(tree,j);
-    }
+    jet_def.reset( JetDef(jet_alg) );
+    cout << "Clustering with " << jet_def->description() << endl << endl;
   }
-  cout << endl;
 
   // Weights tree branches
-  if (weights.size()) {
-    cout << "Selected weights:" << endl;
-    for (auto& w : weights) {
-      cout << w << endl;
-      weight::add(tree,w);
+  if (wt_given) {
+    if (weights.size()) {
+      cout << "Selected weights:" << endl;
+      for (auto& w : weights) {
+        cout << w << endl;
+        weight::add(tree,w);
+      }
+    } else {
+      cout << "Using all weights:" << endl;
+      const TObjArray *br = wt_tree->GetListOfBranches();
+      for (Int_t i=0,n=br->GetEntries();i<n;++i) {
+        auto w = br->At(i)->GetName();
+        cout << w << endl;
+        weight::add(tree,w);
+      }
     }
-  } else {
-    cout << "Using all weights:" << endl;
-    const TObjArray *br = wt_tree->GetListOfBranches();
-    for (Int_t i=0,n=br->GetEntries();i<n;++i) {
-      auto w = br->At(i)->GetName();
-      cout << w << endl;
-      weight::add(tree,w);
-    }
-  }
+  } else weight::add(tree,"weight",false); // Use default ntuple weight
   cout << endl;
 
   // Read CSS file with histogram properties
@@ -331,59 +298,55 @@ int main(int argc, char** argv)
     hist_wt::dirs[w.get()] = fout->mkdir(w->name.c_str());
   }
 
-  for (auto& j : SJClusterAlg::all) {
-    const auto dir = fout->mkdir(j->name.c_str());
-    for (auto& w : weight::all) {
-      hist_alg_wt::dirs[make_pair(j.get(),w.get())]
-        = dir->mkdir(w->name.c_str());
-    }
-  }
-
   fout->cd();
 
   // Book histograms ************************************************
+  TH1* h_N   = hist::css->mkhist("N");
+  TH1* h_pid = hist::css->mkhist("pid");
+
+  #define h_(name) h_##name(#name)
 
   /* NOTE:
    * excl = exactly the indicated number of jets, zero if no j in name
    * incl = that many or more jets
+   *
    * VBF = vector boson fusion cut
+   *
+   * y   = rapidity
+   * eta = pseudo-rapidity
    */
 
-  #define h_(name) h_##name(#name)
-
-  TH1* h_N   = hist::css->mkhist("N");
-  TH1* h_pid = hist::css->mkhist("pid");
-
-  hist_wt h_(xs), h_(H_mass), h_(H_pT), h_(H_y);
-
   // Book Histograms
-  hist_alg_wt
-    h_(NJet_incl), h_(NJet_excl), h_(NJet_incl_50), h_(NJet_excl_50),
+  hist_wt
+    h_(H_mass),
 
-    h_(H_pT_excl),
+    h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
 
-    h_(jet1_pT), h_(jet1_pT_excl), h_(jet1_y), h_(jet1_tau),
-    h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
-    h_(jet3_pT), h_(jet3_y), h_(jet3_tau),
+    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_y_2j), h_(H_y_2j_excl),
+    h_(jet2_mass), h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
+    h_(H2j_mass), h_(H2j_pT), h_(H2j_pT_excl),
 
-    h_(jj_mass),
+    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_y_1j), h_(H_y_1j_excl),
+    h_(jet1_mass), h_(jet1_pT), h_(jet1_y), h_(jet1_tau),
+    h_(H1j_pT), h_(H1j_pT_excl),
+
+    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_y_0j), h_(H_y_0j_excl),
+
+    h_(H_2j_deltaphi), h_(H_2j_deltaphi_excl),
+    h_(H_2j_deltay), h_(H_2j_deltay_excl),
+
+    h_(2j_mass),
     h_(j_j_deltaphi), h_(j_j_deltaphi_excl), h_(j_j_deltaphi_VBF),
     h_(j_j_deltay),
 
-    h_(H_j_pT), h_(H_j_pT_excl),
-    h_(Hj_pT), h_(Hj_pT_excl),
+    h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum),
 
-    h_(H_jj_pT), h_(H_jj_pT_excl), h_(Hjj_mass),
-    h_(H_jj_deltaphi), h_(H_jj_deltaphi_excl),
-    h_(H_jj_deltay),
-    h_(Hjj_pT), h_(Hjj_pT_excl),
-
-    h_(loose), h_(tight),
-    h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
+    h_(loose), h_(tight)
   ;
 
   // Reading events from the input TChain ***************************
   Long64_t numOK = 0;
+  Int_t prev_id = -1;
   cout << "Reading " << num_events.second << " entries";
   if (num_events.first>0) cout << " starting at " << num_events.first << endl;
   else cout << endl;
@@ -395,7 +358,7 @@ int main(int argc, char** argv)
     tree->GetEntry(ent);
 
     if (event.nparticle>BHMAXNP) {
-      cerr << "More particles in the event then MAXNP" << endl
+      cerr << "More particles in the event then BHMAXNP" << endl
            << "Increase array length to " << event.nparticle << endl;
       exit(1);
     }
@@ -403,174 +366,178 @@ int main(int argc, char** argv)
     // Find Higgs
     Int_t hi = 0; // Higgs index
     while (hi<event.nparticle) {
-      if (event.kf[hi]==25) {
-        ++numOK;
-        break;
-      }
+      if (event.kf[hi]==25) break;
       else ++hi;
     }
     if (hi==event.nparticle) {
       cerr << "No Higgs in event " << ent << endl;
       continue;
     }
+    ++numOK;
 
-    h_N->Fill(0.5);
+    // Count number of events (not entries)
+    if (prev_id!=event.eid) h_N->Fill(0.5);
+    prev_id = event.eid;
 
     // Higgs 4-vector
     const TLorentzVector higgs(event.px[hi],event.py[hi],event.pz[hi],event.E[hi]);
 
     const Double_t H_mass = higgs.M();        // Higgs Mass
-    const Double_t H_pt   = higgs.Pt();       // Higgs Pt
-    const Double_t H_eta  = higgs.Rapidity(); // Higgs Rapidity
+    const Double_t H_pT   = higgs.Pt();       // Higgs Pt
+    const Double_t H_y    = higgs.Rapidity(); // Higgs Rapidity
 
     // Fill histograms ***********************************
     for (Int_t i=0;i<event.nparticle;i++) h_pid->Fill(event.kf[i]);
 
-    h_xs.Fill(0.5);
+    h_H_mass .Fill(H_mass);
+    h_H_pT_0j.Fill(H_pT);
+    h_H_y_0j .Fill(H_y);
 
-    h_H_mass.Fill(H_mass);
-    h_H_pT  .Fill(H_pt);
-    h_H_y   .Fill(H_eta);
-
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Loop over SpartyJet clustering algorithms
-    for (auto& alg : SJClusterAlg::all) {
-      hist::alg_ptr = alg.get(); // set static algorithm pointer for histograms
-
-      // sort jets by Pt
-      const vector<TLorentzVector> jets = alg->jetsByPt(pt_cut,eta_cut);
-      const size_t njets = jets.size(); // number of jets
-
-      int njets50 = 0;
-      for (auto& j : jets) {
-        if (j.Pt()>=50.) ++njets50;
-        else break;
+    // Jet clustering *************************************
+    vector<Jet> jets;
+    if (sj_given) { // Read jets from SpartyJet ntuple
+      const vector<TLorentzVector> sj_jets = sj_alg->jetsByPt(pt_cut,eta_cut);
+      const bool has2jets = ( sj_jets.size()>1 );
+      jets.reserve(sj_jets.size());
+      for (auto& jet : sj_jets) {
+        jets.emplace_back(jet,H_y,has2jets && (jets.size()<2));
       }
 
-      // Number of jets hists
-      h_NJet_excl.Fill(njets);
-      h_NJet_excl_50.Fill(njets50);
-      for (unsigned char i=0;i<4;i++) {
-        if (njets  >=i) h_NJet_incl   .Fill(i);
-        if (njets50>=i) h_NJet_incl_50.Fill(i);
+    } else { // Clusted with FastJet on the fly
+      vector<fastjet::PseudoJet> particles;
+      particles.reserve(event.nparticle-1);
+
+      for (Int_t i=0; i<event.nparticle; ++i) {
+        if (i==hi) continue;
+        particles.emplace_back(
+          event.px[i],event.py[i],event.pz[i],event.E[i]
+        );
       }
 
-      if (njets==0) { // njets == 0;
+      // Cluster, sort jets by pT, and apply pT cut
+      const vector<fastjet::PseudoJet> fj_jets = sorted_by_pt(
+        fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut)
+      );
+      const bool has2jets = ( fj_jets.size()>1 );
 
-        h_H_pT_excl.Fill(H_pt);
+      // Apply eta cut
+      jets.reserve(fj_jets.size());
+      for (auto& jet : fj_jets) {
+        if (abs(jet.eta()) < eta_cut)
+          jets.emplace_back(jet,H_y,has2jets && (jets.size()<2));
+      }
+    }
+    const size_t njets = jets.size(); // number of jets
+
+    // ****************************************************
+
+    int njets50 = 0;
+    for (auto& j : jets) {
+      if (j.pT>=50.) ++njets50;
+      else break;
+    }
+
+    // Number of jets hists
+    h_jets_N_excl.Fill(njets);
+    h_jets_N_excl_pT50.Fill(njets50);
+    for (unsigned char i=0;i<4;i++) {
+      if (njets >= i) {
+        h_jets_N_incl.Fill(i);
+        if (njets50 >= i) h_jets_N_incl_pT50.Fill(i);
+      }
+    }
+
+    if (njets==0) { // njets == 0; --------------------------------=0
+
+      h_H_pT_0j_excl.Fill(H_pT);
+      h_H_y_0j_excl .Fill(H_y);
+
+    }
+    else { // njets > 0; ------------------------------------------>0
+
+      h_H_pT_1j  .Fill(H_pT);
+      h_H_y_1j   .Fill(H_y);
+
+      h_jet1_mass.Fill(jets[0].mass);
+      h_jet1_pT  .Fill(jets[0].pT);
+      h_jet1_y   .Fill(jets[0].y);
+      h_jet1_tau .Fill(jets[0].tau);
+
+      const Double_t H1j_pT = (higgs+(*jets[0].p)).Pt();
+
+      h_H1j_pT   .Fill(H1j_pT);
+
+      Double_t jets_HT = 0, jets_tau_max = 0, jets_tau_sum = 0;
+
+      for (auto& jet : jets) {
+        jets_HT += jet.pT;
+        jets_tau_sum += jet.tau;
+        if (jet.tau > jets_tau_max) jets_tau_max = jet.tau;
+      }
+      h_jets_HT     .Fill(jets_HT);
+      h_jets_tau_max.Fill(jets_tau_max);
+      h_jets_tau_sum.Fill(jets_tau_sum);
+
+      if (njets==1) { // njets == 1; ------------------------------=1
+
+        h_H_pT_1j_excl.Fill(H_pT);
+        h_H_y_1j_excl .Fill(H_y);
+        h_H1j_pT_excl .Fill(H1j_pT);
 
       }
-      else { // njets > 0;
+      else { // njets > 1; ---------------------------------------->1
 
-        Double_t jets_HT = 0;
-        static const Double_t jet_tau_cut=8;
-        Double_t max_tj=0;
-        Double_t sum_tj=0;
+        h_H_pT_2j  .Fill(H_pT);
+        h_H_y_2j   .Fill(H_y);
 
-        for (auto& jet : jets) {
-          const Double_t jet_pt  = jet.Pt();
-          const Double_t jet_tau = tau(jet_pt,jet.M(),jet.Rapidity(),H_eta);
+        h_jet2_mass.Fill(jets[1].mass);
+        h_jet2_pT  .Fill(jets[1].pT);
+        h_jet2_y   .Fill(jets[1].y);
+        h_jet2_tau .Fill(jets[1].tau);
 
-          jets_HT += jet_pt;
+        const TLorentzVector jj = (*jets[0].p)+(*jets[1].p);
+        const TLorentzVector H2j = higgs+jj;
 
-          if ( jet_tau > jet_tau_cut ) {
-            sum_tj += jet_tau;
-            if (jet_tau > max_tj) max_tj = jet_tau;
+        const Double_t H2j_mass      = H2j.M();
+        const Double_t H2j_pT        = H2j.Pt();
+        const Double_t H_2j_deltaphi = higgs.Phi() - jj.Phi();
+        const Double_t H_2j_deltay   = H_y - jj.Rapidity();
+
+        const Double_t jj_mass       = jj.M();
+        const Double_t j_j_deltaphi  = jets[0].p->Phi() - jets[1].p->Phi();
+        const Double_t j_j_deltay    = jets[0].y - jets[1].y;
+
+        h_H2j_mass     .Fill(H2j_mass);
+        h_H2j_pT       .Fill(H2j_pT);
+        h_H_2j_deltaphi.Fill(H_2j_deltaphi);
+        h_H_2j_deltay  .Fill(H_2j_deltay);
+        h_2j_mass      .Fill(jj_mass);
+
+        h_j_j_deltaphi .Fill(j_j_deltaphi);
+        h_j_j_deltay   .Fill(j_j_deltay);
+
+        if (j_j_deltay>2.8) { // VBF cuts
+          if (jj_mass>400) {
+            h_j_j_deltaphi_VBF.Fill(j_j_deltaphi);
+            h_loose.Fill(0.5);
+            if (H_2j_deltaphi>2.6) h_tight.Fill(0.5);
           }
         }
-        h_jets_HT.Fill(jets_HT);
-        h_jets_tau_max.Fill(max_tj);
-        h_jets_tau_sum.Fill(sum_tj);
 
-        const TLorentzVector& j1 = jets[0]; // First jet
+        if (njets==2) { // njets == 2; ----------------------------=2
 
-        const Double_t j1_mass = j1.M();
-        const Double_t j1_pt   = j1.Pt();
-        const Double_t j1_eta  = j1.Rapidity();
-
-        const Double_t Hj_pt = (higgs + j1).Pt();
-
-        h_jet1_pT.Fill(j1_pt);
-        h_jet1_y .Fill(j1_eta);
-        h_Hj_pT  .Fill(Hj_pt);
-        h_H_j_pT .Fill(H_pt);
-
-        h_jet1_tau.Fill( tau(j1_pt,j1_mass,j1_eta,H_eta) );
-
-        if (njets==1) { // njets == 1;
-
-          h_Hj_pT_excl  .Fill(Hj_pt);
-          h_H_j_pT_excl .Fill(H_pt);
-          h_jet1_pT_excl.Fill(j1_pt);
+          h_H_pT_2j_excl      .Fill(H_pT);
+          h_H_y_2j_excl       .Fill(H_y);
+          h_H2j_pT_excl       .Fill(H2j_pT);
+          h_H_2j_deltaphi_excl.Fill(H_2j_deltaphi);
+          h_H_2j_deltay_excl  .Fill(H_2j_deltay);
+          h_j_j_deltaphi_excl .Fill(j_j_deltaphi);
 
         }
-        else { // njets > 1;
 
-          const TLorentzVector& j2 = jets[1]; // Second jet
+      } // END njets > 1;
 
-          const Double_t j2_mass = j2.M();
-          const Double_t j2_pt   = j2.Pt();
-          const Double_t j2_eta  = j2.Rapidity();
-
-          const TLorentzVector jj(j1+j2);
-          const TLorentzVector Hjj(higgs + jj);
-
-          const Double_t jj_mass        = jj.M();
-          const Double_t deltaPhi_j_j   = j1.Phi() - j2.Phi();
-          const Double_t deltaPhi_H_jj  = higgs.Phi() - jj.Phi();
-          const Double_t Hjj_pt         = Hjj.Pt();
-          const Double_t Hjj_mass       = Hjj.M();
-          const Double_t deltay_j_j     = abs(j1_eta - j2_eta);
-          const Double_t H_jj_deltay    = abs(H_eta-jj.Rapidity());
-
-          h_j_j_deltaphi .Fill(deltaPhi_j_j);
-          h_H_jj_deltaphi.Fill(deltaPhi_H_jj);
-          h_Hjj_pT       .Fill(Hjj_pt);
-          h_H_jj_pT      .Fill(H_pt);
-          h_jet2_pT      .Fill(j2_pt);
-          h_jet2_y       .Fill(j2_eta);
-          h_jj_mass      .Fill(jj_mass);
-          h_Hjj_mass     .Fill(Hjj_mass);
-          h_j_j_deltay   .Fill(deltay_j_j);
-          h_H_jj_deltay  .Fill(H_jj_deltay);
-
-          if (deltay_j_j>2.8) {
-            if (jj_mass>400) {
-              h_j_j_deltaphi_VBF.Fill(deltaPhi_H_jj);
-              h_loose.Fill(1);
-              if (deltaPhi_H_jj>2.6) h_tight.Fill(1);
-            }
-          }
-
-          h_jet2_tau.Fill( tau(j2_pt,j2_mass,j2_eta,H_eta) );
-
-          if (njets==2) { // njets == 2;
-
-            h_j_j_deltaphi_excl  .Fill(deltaPhi_j_j);
-            h_H_jj_deltaphi_excl .Fill(deltaPhi_H_jj);
-            h_Hjj_pT_excl        .Fill(Hjj_pt);
-            h_H_jj_pT_excl       .Fill(H_pt);
-
-          }
-          else { // njets > 2;
-            const TLorentzVector& j3 = jets[2]; // Second jet
-
-            const Double_t j3_mass = j3.M();
-            const Double_t j3_pt   = j3.Pt();
-            const Double_t j3_eta  = j3.Rapidity();
-
-            h_jet3_pT.Fill(j3_pt);
-            h_jet3_y .Fill(j3_eta);
-
-            h_jet3_tau.Fill( tau(j3_pt,j3_mass,j3_eta,H_eta) );
-
-          } // END njets > 2;
-
-        } // END njets > 1;
-
-      } // END njets > 0;
-
-    } // END Loop over SpartyJet clustering algorithms
+    } // END njets > 0;
 
   } // END of event loop
 

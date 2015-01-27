@@ -61,11 +61,7 @@ bin/test_fj_H3j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lm -lfastjettools -lfastjet
 
-bin/hist_H2j: bin/%: lib/%.o
-	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex
-
-bin/hist_H3j: bin/%: lib/%.o
+bin/hist_H2j bin/hist_H3j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options -lboost_regex
 
@@ -90,7 +86,7 @@ bin/test_rew_calc: parts/lib/rew_calc.o parts/lib/BHEvent.o
 bin/reweigh: tools/lib/timed_counter.o parts/lib/rew_calc.o parts/lib/BHEvent.o
 
 bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.o parts/lib/BHEvent.o parts/lib/SJClusterAlg.o
-bin/hist_H3j: parts/lib/weight.o
+bin/hist_H2j bin/hist_H3j: parts/lib/weight.o
 
 bin/hist_weights bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
 

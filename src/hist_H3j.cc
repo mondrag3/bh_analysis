@@ -105,17 +105,22 @@ fastjet::JetDefinition* JetDef(string& str) {
 
 struct Jet {
 private:
-  inline Double_t _tau(Double_t Eta) noexcept {
-    return sqrt( pT*pT + mass*mass )/( 2.*cosh(eta - Eta) );
+  inline Double_t _tau(Double_t Y) noexcept {
+    // need rapidity here
+    return sqrt( pT*pT + mass*mass )/( 2.*cosh(y - Y) );
   }
 public:
-  Double_t mass, pT, eta, tau;
-  Jet(const TLorentzVector& p, Double_t Eta) noexcept
-  : mass(p.M()), pT(p.Pt()), eta(p.Eta()), tau(_tau(Eta))
+  TLorentzVector *p;
+  Double_t mass, pT, y, tau;
+  Jet(const TLorentzVector& p, Double_t Y, bool keep=false) noexcept
+  : p(keep ? new TLorentzVector(p) : nullptr),
+    mass(p.M()), pT(p.Pt()), y(p.Rapidity()), tau(_tau(Y))
   { }
-  Jet(const fastjet::PseudoJet& p, Double_t Eta) noexcept
-  : mass(p.m()), pT(sqrt(p.kt2())), eta(p.eta()), tau(_tau(Eta))
+  Jet(const fastjet::PseudoJet& p, Double_t Y, bool keep=false) noexcept
+  : p(keep ? new TLorentzVector(p.px(),p.py(),p.pz(),p.E()) : nullptr),
+    mass(p.m()), pT(sqrt(p.kt2())), y(p.rapidity()), tau(_tau(Y))
   { }
+  ~Jet() { delete p; }
 };
 
 // ******************************************************************
@@ -304,7 +309,11 @@ int main(int argc, char** argv)
   /* NOTE:
    * excl = exactly the indicated number of jets, zero if no j in name
    * incl = that many or more jets
+   *
    * VBF = vector boson fusion cut
+   *
+   * y   = rapidity
+   * eta = pseudo-rapidity
    */
 
   // Book Histograms
@@ -313,16 +322,19 @@ int main(int argc, char** argv)
 
     h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
 
-    h_(H_pT_3j), h_(H_pT_3j_excl), h_(H_eta_3j), h_(H_eta_3j_excl),
-    h_(jet3_mass), h_(jet3_pT), h_(jet3_eta), h_(jet3_tau),
+    h_(H_pT_3j), h_(H_pT_3j_excl), h_(H_y_3j), h_(H_y_3j_excl),
+    h_(jet3_mass), h_(jet3_pT), h_(jet3_y), h_(jet3_tau),
+    h_(H3j_mass), h_(H3j_pT), h_(H3j_pT_excl),
 
-    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_eta_2j), h_(H_eta_2j_excl),
-    h_(jet2_mass), h_(jet2_pT), h_(jet2_eta), h_(jet2_tau),
+    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_y_2j), h_(H_y_2j_excl),
+    h_(jet2_mass), h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
+    h_(H2j_pT), h_(H2j_pT_excl),
 
-    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_eta_1j), h_(H_eta_1j_excl),
-    h_(jet1_mass), h_(jet1_pT), h_(jet1_eta), h_(jet1_tau),
+    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_y_1j), h_(H_y_1j_excl),
+    h_(jet1_mass), h_(jet1_pT), h_(jet1_y), h_(jet1_tau),
+    h_(H1j_pT), h_(H1j_pT_excl),
 
-    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_eta_0j), h_(H_eta_0j_excl),
+    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_y_0j), h_(H_y_0j_excl),
 
     h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
   ;
@@ -365,22 +377,26 @@ int main(int argc, char** argv)
     // Higgs 4-vector
     const TLorentzVector higgs(event.px[hi],event.py[hi],event.pz[hi],event.E[hi]);
 
-    const Double_t H_mass = higgs.M();   // Higgs Mass
-    const Double_t H_pT   = higgs.Pt();  // Higgs Pt
-    const Double_t H_eta  = higgs.Eta(); // Higgs Pseudo-rapidity
+    const Double_t H_mass = higgs.M();        // Higgs Mass
+    const Double_t H_pT   = higgs.Pt();       // Higgs Pt
+    const Double_t H_y    = higgs.Rapidity(); // Higgs Rapidity
 
     // Fill histograms ***********************************
     for (Int_t i=0;i<event.nparticle;i++) h_pid->Fill(event.kf[i]);
 
-    h_H_mass  .Fill(H_mass);
-    h_H_pT_0j .Fill(H_pT);
-    h_H_eta_0j.Fill(H_eta);
+    h_H_mass .Fill(H_mass);
+    h_H_pT_0j.Fill(H_pT);
+    h_H_y_0j .Fill(H_y);
 
     // Jet clustering *************************************
     vector<Jet> jets;
     if (sj_given) { // Read jets from SpartyJet ntuple
-      for (auto& jet : sj_alg->jetsByPt(pt_cut,eta_cut))
-        jets.emplace_back(jet,H_eta);
+      const vector<TLorentzVector> sj_jets = sj_alg->jetsByPt(pt_cut,eta_cut);
+      const bool has3jets = ( sj_jets.size()>2 );
+      jets.reserve(sj_jets.size());
+      for (auto& jet : sj_jets) {
+        jets.emplace_back(jet,H_y,has3jets && (jets.size()<3));
+      }
 
     } else { // Clusted with FastJet on the fly
       vector<fastjet::PseudoJet> particles;
@@ -397,11 +413,13 @@ int main(int argc, char** argv)
       const vector<fastjet::PseudoJet> fj_jets = sorted_by_pt(
         fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut)
       );
+      const bool has3jets = ( fj_jets.size()>2 );
 
       // Apply eta cut
       jets.reserve(fj_jets.size());
-      for (auto& j : fj_jets) {
-        if (abs(j.eta()) < eta_cut) jets.emplace_back(j,H_eta);
+      for (auto& jet : fj_jets) {
+        if (abs(jet.eta()) < eta_cut)
+          jets.emplace_back(jet,H_y,has3jets && (jets.size()<2));
       }
     }
     const size_t njets = jets.size(); // number of jets
@@ -424,21 +442,26 @@ int main(int argc, char** argv)
       }
     }
 
-    if (njets==0) { // njets == 0;
+    if (njets==0) { // njets == 0; --------------------------------=0
 
       h_H_pT_0j_excl.Fill(H_pT);
-      h_H_pT_0j_excl.Fill(H_eta);
+      h_H_y_0j_excl .Fill(H_y);
 
     }
-    else { // njets > 0;
+    else { // njets > 0; ------------------------------------------>0
 
       h_H_pT_1j  .Fill(H_pT);
-      h_H_eta_1j .Fill(H_eta);
+      h_H_y_1j   .Fill(H_y);
 
       h_jet1_mass.Fill(jets[0].mass);
       h_jet1_pT  .Fill(jets[0].pT);
-      h_jet1_eta .Fill(jets[0].eta);
+      h_jet1_y   .Fill(jets[0].y);
       h_jet1_tau .Fill(jets[0].tau);
+
+      const TLorentzVector H1j = higgs+(*jets[0].p);
+      const Double_t H1j_pT = H1j.Pt();
+
+      h_H1j_pT   .Fill(H1j_pT);
 
       Double_t jets_HT = 0, jets_tau_max = 0, jets_tau_sum = 0;
 
@@ -451,42 +474,55 @@ int main(int argc, char** argv)
       h_jets_tau_max.Fill(jets_tau_max);
       h_jets_tau_sum.Fill(jets_tau_sum);
 
-      if (njets==1) { // njets == 1;
+      if (njets==1) { // njets == 1; ------------------------------=1
 
-        h_H_pT_1j_excl .Fill(H_pT);
-        h_H_eta_1j_excl.Fill(H_eta);
+        h_H_pT_1j_excl.Fill(H_pT);
+        h_H_y_1j_excl .Fill(H_y);
+        h_H1j_pT_excl .Fill(H1j_pT);
 
       }
-      else { // njets > 1;
+      else { // njets > 1; ---------------------------------------->1
 
         h_H_pT_2j  .Fill(H_pT);
-        h_H_eta_2j .Fill(H_eta);
+        h_H_y_2j   .Fill(H_y);
 
         h_jet2_mass.Fill(jets[1].mass);
         h_jet2_pT  .Fill(jets[1].pT);
-        h_jet2_eta .Fill(jets[1].eta);
+        h_jet2_y   .Fill(jets[1].y);
         h_jet2_tau .Fill(jets[1].tau);
 
-        if (njets==2) { // njets == 1;
+        const TLorentzVector H2j = H1j+(*jets[1].p);
+        const Double_t H2j_pT = H2j.Pt();
 
-          h_H_pT_2j_excl .Fill(H_pT);
-          h_H_eta_2j_excl.Fill(H_eta);
+        h_H2j_pT   .Fill(H2j_pT);
+
+        if (njets==2) { // njets == 2; ----------------------------=2
+
+          h_H_pT_2j_excl.Fill(H_pT);
+          h_H_y_2j_excl .Fill(H_y);
+          h_H2j_pT_excl .Fill(H2j_pT);
 
         }
-        else { // njets > 2;
+        else { // njets > 2; -------------------------------------->2
 
           h_H_pT_3j  .Fill(H_pT);
-          h_H_eta_3j .Fill(H_eta);
+          h_H_y_3j   .Fill(H_y);
 
           h_jet3_mass.Fill(jets[2].mass);
           h_jet3_pT  .Fill(jets[2].pT);
-          h_jet3_eta .Fill(jets[2].eta);
+          h_jet3_y   .Fill(jets[2].y);
           h_jet3_tau .Fill(jets[2].tau);
 
-          if (njets==3) { // njets == 1;
+          const TLorentzVector H3j = H2j+(*jets[2].p);
+          const Double_t H3j_pT = H3j.Pt();
 
-            h_H_pT_3j_excl .Fill(H_pT);
-            h_H_eta_3j_excl.Fill(H_eta);
+          h_H3j_pT   .Fill(H3j_pT);
+
+          if (njets==3) { // njets == 3; --------------------------=3
+
+            h_H_pT_3j_excl.Fill(H_pT);
+            h_H_y_3j_excl .Fill(H_y);
+            h_H3j_pT_excl .Fill(H3j_pT);
 
           }
 
