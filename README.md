@@ -4,7 +4,7 @@
 
 The compiled executables are created in the `bin` directory. Help message can be displayed by running `./bin/executable -h`, or `./bin/executable --help`, or, in most cases, simply `./bin/executable` without any arguments.
 
-Listed below is the list of executables, their purpose, and usage examples.
+Below is the list of executables, their purpose, and usage examples.
 
 ### reweigh
 * Purpose: Reweighting of BlackHat ntuples
