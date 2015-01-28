@@ -35,6 +35,7 @@ The code is written in C++11 and therefore requires a C++ compiler which support
 #### Other requirements:
 * ROOT: <https://root.cern.ch/drupal/>
 * BOOST: <http://www.boost.org/>
+* LHAPDF6: <https://lhapdf.hepforge.org/>
 * FastJet: <http://fastjet.fr/>
 
 ---
