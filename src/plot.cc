@@ -103,7 +103,7 @@ int main(int argc, char** argv)
   cout << endl;
   
   // Number of events
-  const Double_t N = get<TH1>(f,"N")->GetBinContent(1);
+  const Double_t N = get<TH1>(fin,"N")->GetBinContent(1);
   const Double_t N_scale = 1./N;
   cout << "Events: " << N << endl;
 
@@ -122,47 +122,79 @@ int main(int argc, char** argv)
   TCanvas canv;
   canv.SaveAs((fout_name+'[').c_str());
   
-  for (auto h : central) {
-    const string h_name(h->GetName());
+  for (auto h_cent : central) {
+    const string h_name(h_cent->GetName());
     cout << h_name << endl;
     
     var h_var = var::other;
     
-    if (_hname.find("_pT") != string::npos) {
-      h_var = pT;
-    } else if (_hname.find("_mass") != string::npos){
-    
-    } else if (_hname.find("_deltay") != string::npos){
-    
-    } else if (_hname.find("_deltaphi") != string::npos){
-    
-    } else if (_hname.find("_HT") != string::npos){
-    
-    } else if (_hname.find("_tau") != string::npos){
-    
-    } else if (_hname.find("_pT") != string::npos){
-    
+    if (h_name.find("_N") != string::npos) {
+      h_var = var::N;
+    } else if (h_name.find("_pT") != string::npos) {
+      h_var = var::pT;
+    } else if (h_name.find("_mass") != string::npos) {
+      h_var = var::mass;
+    } else if ( (h_name.find("_deltay") != string::npos) ||
+                (h_name.find("_y") != string::npos) ) {
+      h_var = var::y;
+    } else if ( (h_name.find("_deltaphi") != string::npos) ||
+                (h_name.find("_phi") != string::npos) ) {
+      h_var = var::phi;
+    } else if (h_name.find("_HT") != string::npos) {
+      h_var = var::HT;
+    } else if (h_name.find("_tau") != string::npos) {
+      h_var = var::tau;
     }
     
     const size_t nbins = h->GetNbinsX();
-    vector<double_t> bins_edge(nbins,0.),
+    vector<Double_t> bins_edge(nbins,0.),
                      bins_wdth(nbins,0.),
                      cent     (nbins,0.),
                      scales_lo(nbins,0.),
                      scales_hi(nbins,0.),
                      pdf_lo   (nbins,0.),
                      pdf_hi   (nbins,0.);
+                     
+    for (size_t i=0;i<nbins;++i) {
+      bins_edge[i] = h_cent->GetBinLowEdge(i+1);
+      bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
+      cent  [i]    = h_cent->GetBinContent(i+1);
+      pdf_lo[i]    = (cent[i] - h_pdf_lo->GetBinContent(i+1));
+      pdf_hi[i]    = (h_pdf_hi->GetBinContent(i+1) - cent[i]);
+      for (TH1 *hs : h_scales) {
+        Double_t x = hs->GetBinContent(i+1) - cent[i];
+        if (x>0.) {
+          if (scales_hi[i]<x) scales_hi[i] = x;
+        } else {
+          x = -x;
+          if (scales_lo[i]<x) scales_lo[i] = x;
+        }
+      }
+    }
+    
+    if (h_var!=var::N) {
+      Double_t width;
+      for (size_t i=0;i<nbins;++i) {
+        width = bins_wdth[i];
+        cent     [i] /= width;
+        h_cent->SetBinContent(i+1,cent[i]);
+        pdf_lo   [i] /= width;
+        pdf_hi   [i] /= width;
+        scales_hi[i] /= width;
+        scales_lo[i] /= width;
+      }
+    }
 
-    const Double_t sigma   = ( h_name.find("jets_N_incl") == string::npos
-                           ? h->Integral(0,nbins+1)
-                           : h->GetBinContent(1) );
+    const Double_t sigma   = ( h_var!=var::N ? h_cent->Integral(0,nbins+1)
+                                             : h_cent->GetBinContent(1) );
     const Double_t sigma_u = h->GetBinContent(0);
     const Double_t sigma_o = h->GetBinContent(nbins+1);
     
     h_cent->Sumw2(false);
     h_cent->SetLineWidth(2);
     h_cent->SetLineColor(1);
-    h_cent->Draw("same");
+    h_cent->Draw();
+    // h_cent->Draw("same");
     
     /*
     for (size_t di=1,dn=dirs.size();di<dn;++di) {
