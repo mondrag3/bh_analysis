@@ -2,7 +2,6 @@
 #include <string>
 #include <unordered_map>
 
-#include <TClass.h>
 #include <TFile.h>
 #include <TDirectory.h>
 #include <TKey.h>
@@ -17,8 +16,7 @@ inline T* get(TDirectory* dir, const char* name) {
   dir->GetObject(name,obj);
   if (obj) return obj;
   else {
-    cerr << "No " << T::Class()->ClassName() << ' ' << name
-         << " in " << dir->GetName() << endl;
+    cerr << "No object " << name << " in " << dir->GetName() << endl;
     exit(1);
   }
 }
@@ -27,17 +25,17 @@ int main(int argc, char** argv)
 {
   if (argc<3) {
     cout << "Usage: " << argv[0]
-         << " output_nlo.root input_born.root input_real.root ..." << endl;
+         << " output_fout.root input_born.root input_real.root ..." << endl;
     exit(0);
   }
-  
+
   // Track histograms
   unordered_map<string,int> hist_names;
 
   // Output file
-  TFile *nlo = new TFile(argv[1],"recreate");
-  if (nlo->IsZombie()) exit(1);
-  cout << "Output file: " << nlo->GetName() << endl;
+  TFile *fout = new TFile(argv[1],"recreate");
+  if (fout->IsZombie()) exit(1);
+  cout << "Output file: " << fout->GetName() << endl;
 
   for (int fi=2; fi<argc; ++fi) {
     static bool first_file = true;
@@ -62,10 +60,10 @@ int main(int argc, char** argv)
         static bool first_dir = true;
 
         TDirectory *dir = static_cast<TDirectory*>(obj1);
-        TDirectory *nlo_dir =
-          ( first_file ? nlo->mkdir(dir->GetName())
-                       : get<TDirectory>(nlo,dir->GetName()) );
-        nlo_dir->cd();
+        TDirectory *out_dir =
+          ( first_file ? fout->mkdir(dir->GetName())
+                       : get<TDirectory>(fout,dir->GetName()) );
+        if (first_file) out_dir->cd();
 
         static TKey *key2;
         TIter nextkey2(dir->GetListOfKeys());
@@ -75,7 +73,7 @@ int main(int argc, char** argv)
           if (obj2->InheritsFrom(TH1::Class())) {
 
             TH1 *h = static_cast<TH1*>(obj2);
-            
+
             if (first_dir) {
               hist_names[h->GetName()] = 1;
             } else {
@@ -89,19 +87,22 @@ int main(int argc, char** argv)
                 ++it->second;
               }
             }
-            
+
             // Scale and add histograms
             if (first_file) {
               h->Scale(N_scale);
               h->Clone();
             } else {
               h->Scale(N_scale);
-              get<TH1>(dir,h->GetName())->Add(h,N_scale);
+              TH1 *new_h = get<TH1>(out_dir,h->GetName());
+              Double_t ent = new_h->GetEntries();
+              new_h->Add(h,N_scale);
+              new_h->SetEntries(ent+h->GetEntries());
             }
 
           }
         }
-        
+
         // Check if all histograms from the first directory were present
         auto it = hist_names.begin();
         const int first_counts = it->second;
@@ -115,9 +116,31 @@ int main(int argc, char** argv)
             exit(1);
           }
         }
-        
+
         // no longer first directory
         if (first_dir) first_dir = false;
+
+      } else { // not a TDirectory
+        if (obj1->InheritsFrom(TH1::Class())) {
+          if (strcmp(obj1->GetName(),"N")) {
+
+            TH1 *h = static_cast<TH1*>(obj1);
+
+            // Scale and add histograms
+            if (first_file) {
+              fout->cd();
+              h->Scale(N_scale);
+              h->Clone();
+            } else {
+              h->Scale(N_scale);
+              TH1 *new_h = get<TH1>(fout,h->GetName());
+              Double_t ent = new_h->GetEntries();
+              new_h->Add(h,N_scale);
+              new_h->SetEntries(ent+h->GetEntries());
+            }
+
+          }
+        }
       }
     }
 
@@ -125,11 +148,16 @@ int main(int argc, char** argv)
     // no longer first file
     if (first_file) first_file = false;
   }
-  
+
+  // made dummy N histogram with 1 event
+  fout->cd();
+  TH1D *h_N = new TH1D("N","",1,0,1);
+  h_N->SetBinContent(1,1);
+
   // Write and close output root file
-  nlo->Write();
-  cout << "\nWrote file: " << nlo->GetName() << endl;
-  delete nlo;
+  fout->Write();
+  cout << "\nWrote file: " << fout->GetName() << endl;
+  delete fout;
 
   return 0;
 }

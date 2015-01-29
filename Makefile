@@ -15,7 +15,7 @@ FJ_LIBS := -lfastjet
 
 .PHONY: all misc tools parts clean deepclean
 
-all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh bin/merge_nlo
+all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh bin/merge_parts
 
 misc: $(DIRS) bin/cross_section_hist bin/cross_section_bh bin/hist_weights bin/select_old_weight_hists bin/draw_together
 
@@ -27,7 +27,7 @@ lib bin:
 	@mkdir -p $@
 
 # main object rules
-lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o lib/test_H3j.o lib/test_fj_H3j.o lib/inspect_bh.o lib/merge_nlo.o: lib/%.o: src/%.cc
+lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o lib/test_H3j.o lib/test_fj_H3j.o lib/inspect_bh.o lib/merge_parts.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -37,7 +37,7 @@ lib/hist_H2j.o lib/hist_H3j.o: lib/%.o: src/%.cc
 		-c $(filter %.cc,$^) -o $@
 
 # executable rules
-bin/cross_section_bh bin/cross_section_hist bin/inspect_bh bin/merge_nlo: bin/%: lib/%.o
+bin/cross_section_bh bin/cross_section_hist bin/inspect_bh bin/merge_parts: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
