@@ -323,19 +323,26 @@ int main(int argc, char** argv)
 
     h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
 
-    h_(H_pT_3j), h_(H_pT_3j_excl), h_(H_y_3j), h_(H_y_3j_excl),
-    h_(jet3_mass), h_(jet3_pT), h_(jet3_y), h_(jet3_tau),
-    h_(H3j_mass), h_(H3j_pT), h_(H3j_pT_excl),
+    h_(H_pT_3j), h_(H_pT_3j_excl),
+    h_(H_pT_2j), h_(H_pT_2j_excl),
+    h_(H_pT_1j), h_(H_pT_1j_excl),
+    h_(H_pT_0j), h_(H_pT_0j_excl),
 
-    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_y_2j), h_(H_y_2j_excl),
-    h_(jet2_mass), h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
+    h_(H_y_3j), h_(H_y_3j_excl),
+    h_(H_y_2j), h_(H_y_2j_excl),
+    h_(H_y_1j), h_(H_y_1j_excl),
+    h_(H_y_0j), h_(H_y_0j_excl),
+    
+    h_(H3j_pT), h_(H3j_pT_excl),
     h_(H2j_pT), h_(H2j_pT_excl),
-
-    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_y_1j), h_(H_y_1j_excl),
-    h_(jet1_mass), h_(jet1_pT), h_(jet1_y), h_(jet1_tau),
     h_(H1j_pT), h_(H1j_pT_excl),
+    
+    h_(H3j_mass),
 
-    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_y_0j), h_(H_y_0j_excl),
+    h_(jet1_mass), h_(jet2_mass), h_(jet3_mass),
+    h_(jet1_pT),   h_(jet2_pT),   h_(jet3_pT),
+    h_(jet1_y),    h_(jet2_y),    h_(jet3_y),
+    h_(jet1_tau),  h_(jet2_tau),  h_(jet3_tau),
 
     h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum)
   ;

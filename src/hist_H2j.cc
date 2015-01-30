@@ -36,19 +36,13 @@ namespace po = boost::program_options;
 
 template<typename T> inline T sq(const T x) { return x*x; }
 
-// Histogram wrappers ***********************************************
-struct hist {
-  static unique_ptr<const csshists> css;
-  virtual void Fill(Double_t x) noexcept =0;
-};
-unique_ptr<const csshists> hist::css;
-
-class hist_wt: public hist {
+// Histogram wrapper ************************************************
+class hist {
   unordered_map<const weight*,TH1*> h;
 public:
-  hist_wt(const string& name) {
+  hist(const string& name) {
     TH1* hist = css->mkhist(name);
-    // hist->Sumw2(false); // in ROOT6 true seems to be the default
+    hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& wt : weight::all) {
       const weight *w = wt.get();
       dirs[w]->cd();
@@ -57,14 +51,21 @@ public:
     delete hist;
   }
 
-  virtual void Fill(Double_t x) noexcept {
-    for (auto& wt : weight::all)
-      h[wt.get()]->Fill(x,wt->is_float ? wt->w.f : wt->w.d);
+  void Fill(Double_t x) noexcept {
+    for (auto& _h : h) {
+      _h.second->Fill(x,_h.first->is_float ? _h.first->w.f : _h.first->w.d);
+      if (!new_event)
+        _h.second->SetEntries(_h.second->GetEntries()-1);
+    }
   }
-
+  
+  static bool new_event;
+  static unique_ptr<const csshists> css;
   static unordered_map<const weight*,TDirectory*> dirs;
 };
-unordered_map<const weight*,TDirectory*> hist_wt::dirs;
+bool hist::new_event;
+unique_ptr<const csshists> hist::css;
+unordered_map<const weight*,TDirectory*> hist::dirs;
 
 // istream operators ************************************************
 namespace std {
@@ -295,7 +296,7 @@ int main(int argc, char** argv)
 
   // Make directories ***********************************************
   for (auto& w : weight::all) {
-    hist_wt::dirs[w.get()] = fout->mkdir(w->name.c_str());
+    hist::dirs[w.get()] = fout->mkdir(w->name.c_str());
   }
 
   fout->cd();
@@ -317,7 +318,7 @@ int main(int argc, char** argv)
    */
 
   // Book Histograms
-  hist_wt
+  hist
     h_(H_mass),
 
     h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
@@ -378,7 +379,8 @@ int main(int argc, char** argv)
     if (prev_id!=event.eid) {
       h_N->Fill(0.5);
       ++num_selected;
-    }
+      hist::new_event = true;
+    } else if (hist::new_event) hist::new_event = false;
     prev_id = event.eid;
 
     // Higgs 4-vector
