@@ -6,7 +6,7 @@
 //#include <algorithm>
 
 #include <boost/program_options.hpp>
-#include<boost/tokenizer.hpp>
+#include <boost/tokenizer.hpp>
 
 #include <TFile.h>
 #include <TDirectory.h>
@@ -127,8 +127,8 @@ int main(int argc, char** argv)
   
   // Number of events
   TH1 * const h_N = get<TH1>(fin,"N");
-  const Double_t N = h_N->GetBinContent(1);
-  cout << "Events: " << h_N->GetEntries() << endl;
+  const Double_t N_events  = h_N->GetBinContent(1);
+  cout << "Events: " << N_events << endl;
 
   // Properties
   set<string> pdf_name, jet_alg;
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
     static boost::char_separator<char> sep("_");
     tokenizer tok(dir_name,sep);
     for (auto t : tok) {
-      cout << t << endl;
+      //cout << t << endl;
       if (!t.substr(0,3).compare("PDF")) pdf_name.emplace(t,3);
       // TODO: Add Jet algorithm label
     }
@@ -188,9 +188,9 @@ int main(int argc, char** argv)
     // Cross section
     const Double_t sigma   = ( h_name.find("_N_incl") != string::npos
                            ? h_cent->GetBinContent(1)
-                           : h_cent->Integral(0,nbins+1) );
-    const Double_t sigma_u = h_cent->GetBinContent(0);
-    const Double_t sigma_o = h_cent->GetBinContent(nbins+1);
+                           : h_cent->Integral(0,nbins+1) )/N_events;
+    const Double_t sigma_u = h_cent->GetBinContent(0)/N_events;
+    const Double_t sigma_o = h_cent->GetBinContent(nbins+1)/N_events;
     
     // Book vectors
     vector<Double_t> bins_edge(nbins,0.),
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
     }
     
     for (size_t i=0;i<nbins;++i) {
-      const Double_t unit = ( h_var==var::N ? N : N*bins_wdth[i]);
+      const Double_t unit = N_events*bins_wdth[i];
       cent     [i] /= unit;
       h_cent->SetBinContent(i+1,cent[i]);
       pdf_lo   [i] /= unit;
@@ -323,7 +323,7 @@ int main(int argc, char** argv)
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    TLatex N_lbl(0.73,0.70, Form("Entries: %.2e",h_cent->GetEntries()));
+    TLatex N_lbl(0.73,0.70, Form("Events: %.2e",h_cent->GetEntries()));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
     N_lbl.SetTextFont(42);
