@@ -122,7 +122,6 @@ int main(int argc, char** argv)
 
       } else { // not a TDirectory
         if (obj1->InheritsFrom(TH1::Class())) {
-          if (strcmp(obj1->GetName(),"N")) {
 
             TH1 *h = static_cast<TH1*>(obj1);
 
@@ -139,7 +138,6 @@ int main(int argc, char** argv)
               new_h->SetEntries(ent+h->GetEntries());
             }
 
-          }
         }
       }
     }
@@ -149,10 +147,8 @@ int main(int argc, char** argv)
     if (first_file) first_file = false;
   }
 
-  // made dummy N histogram with 1 event
-  fout->cd();
-  TH1D *h_N = new TH1D("N","",1,0,1);
-  h_N->SetBinContent(1,1);
+  // Set N to 1
+  get<TH1>(fout,"N")->SetBinContent(1,1);
 
   // Write and close output root file
   fout->Write();

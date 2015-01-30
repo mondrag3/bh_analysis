@@ -161,7 +161,7 @@ int main(int argc, char** argv)
       ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
-       ->default_value(CONFDIR"/Hj.css","Hj.css"),
+       ->default_value(CONFDIR"/H3j.css","H3j.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
        "process only this many events,\nnum or first:num")
