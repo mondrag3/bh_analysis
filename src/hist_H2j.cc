@@ -54,7 +54,7 @@ public:
   void Fill(Double_t x) noexcept {
     for (auto& _h : h) {
       _h.second->Fill(x,_h.first->is_float ? _h.first->w.f : _h.first->w.d);
-      if (!new_event)
+      if (!new_event) // decrement number of entries of still on the same event
         _h.second->SetEntries(_h.second->GetEntries()-1);
     }
   }

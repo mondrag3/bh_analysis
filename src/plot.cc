@@ -3,7 +3,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
-//#include <algorithm>
+#include <set>
+#include <cmath>
 
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
@@ -323,7 +324,7 @@ int main(int argc, char** argv)
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    TLatex N_lbl(0.73,0.70, Form("Events: %.2e",h_cent->GetEntries()));
+    TLatex N_lbl(0.73,0.70, Form("Events: %ld",lround(h_cent->GetEntries())));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
     N_lbl.SetTextFont(42);

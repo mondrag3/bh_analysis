@@ -36,7 +36,7 @@ jet\d_tau {
 }
 
 jet\d_mass {
-  Bins: 25 0 50;
+  Bins: 30 0 30;
 }
 
 H\dj_mass {
@@ -51,12 +51,8 @@ H1j_pT(?:_.*)? {
   Bins: 25 0 150;
 }
 
-H2j_pT(?:_.*)? {
-  Bins: 40 0 2;
-}
-
-H3j_pT(?:_.*)? {
-  Bins: 40 0 2;
+H[23]j_pT(?:_.*)? {
+  Bins: 25 0 0.25;
 }
 
 loose {
@@ -68,7 +64,7 @@ tight {
 }
 
 jets_HT {
-  Bins: 25 0 200;
+  Bins: 25 0 400;
 }
 
 jets_tau_max {
