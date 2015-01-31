@@ -92,7 +92,7 @@ int main(int argc, char** argv)
     ("overflow", po::value<float>(&of_lim),
      "print under- and overflow messages on histograms above the limit")
     ;
-    
+
     po::positional_options_description pos;
     pos.add("input",1);
 
@@ -104,33 +104,32 @@ int main(int argc, char** argv)
       return 0;
     }
     po::notify(vm);
-    
+
     if (!fout_name.size()) {
       size_t first = fin_name.rfind('/')+1;
       if (first==string::npos) first = 0;
       fout_name = fin_name.substr(first,fin_name.rfind('.')-first)+".pdf";
     }
     if (vm.count("overflow")) of_lim_set = true;
-      
+
   }
   catch(exception& e) {
     cerr << "\033[31mError: " <<  e.what() <<"\033[0m"<< endl;
     exit(1);
   }
   // END OPTIONS ****************************************************
-  
+
   // Open files
   TFile *fin = new TFile(fin_name.c_str(),"read");
   if (fin->IsZombie()) exit(1);
   cout << "Input file: " << fin->GetName() << endl;
   cout << "Output file: " << fout_name << endl;
   cout << endl;
-  
+
   // Number of events
-  TH1D * const h_N = get<TH1D>(fin,"N");
-  const Double_t N_events  = h_N->GetAt(1);
-  cout << "Entries: " << lround(h_N->GetEntries()) << endl;
-  cout << "Events: " << lround(N_events) << endl;
+  TH1D *h_N = get<TH1D>(fin,"N");
+  const Double_t N_events = h_N->GetAt(1);
+  cout << "Events: " << lround(h_N->GetEntries()) << endl;
 
   // Properties
   set<string> pdf_name, jet_alg;
@@ -152,23 +151,23 @@ int main(int argc, char** argv)
   }
   cout << endl;
   const size_t ndirs = dirs.size();
-  
+
   vector<TH1D*> central;
   central.reserve(32);
   get_all(dirs[0],central);
-  
+
   // Draw histograms
   TCanvas canv;
   canv.SaveAs((fout_name+'[').c_str());
-  
+
   for (auto h_cent : central) {
     const string h_name(h_cent->GetName());
     cout << h_name << endl;
     const size_t nbins = h_cent->GetNbinsX();
-    
+
     // Variable type
     var h_var = var::other;
-    
+
     if (h_name.find("_N") != string::npos) {
       h_var = var::N;
     } else if (h_name.find("_pT") != string::npos) {
@@ -193,7 +192,7 @@ int main(int argc, char** argv)
                            : h_cent->Integral(0,nbins+1) )/N_events;
     const Double_t sigma_u = h_cent->GetAt(0)/N_events;
     const Double_t sigma_o = h_cent->GetAt(nbins+1)/N_events;
-    
+
     // Book vectors
     vector<Double_t> bins_edge(nbins,0.),
                      bins_wdth(nbins,0.),
@@ -202,28 +201,28 @@ int main(int argc, char** argv)
                      scales_hi(nbins,0.),
                      pdf_lo   (nbins,0.),
                      pdf_hi   (nbins,0.);
-    
+
     // Fill central vectors
     for (size_t i=0;i<nbins;++i) {
       bins_edge[i] = h_cent->GetBinLowEdge(i+1);
       bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
       cent  [i]    = h_cent->GetAt(i+1);
     }
-    
+
     // Loop over other directories
     for (size_t di=1; di<ndirs; ++di) {
       TDirectory * const dir = dirs[di];
       const string dir_name(dir->GetName());
       TH1D * const h = get<TH1D>(dir,h_name.c_str());
-      
+
       if (dir_name.find("_up_") != string::npos) { // pdf up
-        for (size_t i=0;i<nbins;++i) 
+        for (size_t i=0;i<nbins;++i)
           pdf_hi[i] = h->GetAt(i+1) - cent[i];
-        
+
       } else if (dir_name.find("_down_") != string::npos) { // pdf down
-        for (size_t i=0;i<nbins;++i) 
+        for (size_t i=0;i<nbins;++i)
           pdf_lo[i] = cent[i] - h->GetAt(i+1);
-        
+
       } else { // scale variation
         for (size_t i=0;i<nbins;++i) {
           Double_t x = h->GetAt(i+1) - cent[i];
@@ -246,9 +245,9 @@ int main(int argc, char** argv)
       scales_hi[i] /= unit;
       scales_lo[i] /= unit;
     }
-    
+
     // Draw *********************************************************
-    
+
     TGraphAsymmErrors g_scales (nbins,bins_edge.data(),cent.data(),
                                       0,bins_wdth.data(),
                                       scales_lo.data(),scales_hi.data()),
@@ -325,7 +324,6 @@ int main(int argc, char** argv)
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    test(lround(h_cent->GetEntries()))
     TLatex N_lbl(0.73,0.70, Form("Ent: %ld",lround(h_cent->GetEntries())));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
@@ -371,14 +369,14 @@ int main(int argc, char** argv)
         o_lbl->Draw();
       }
     }
-    
+
     // **************************************************************
-    
+
     canv.SaveAs(fout_name.c_str());
   }
 
   canv.SaveAs((fout_name+']').c_str());
-  
+
   delete fin;
 
   return 0;

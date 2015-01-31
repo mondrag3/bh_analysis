@@ -55,7 +55,7 @@ public:
     for (auto& _h : h)
       _h.second->Fill(x,_h.first->is_float ? _h.first->w.f : _h.first->w.d);
   }
-  
+
   static unique_ptr<const csshists> css;
   static unordered_map<const weight*,TDirectory*> dirs;
 };
@@ -327,12 +327,10 @@ int main(int argc, char** argv)
     h_(H_y_2j), h_(H_y_2j_excl),
     h_(H_y_1j), h_(H_y_1j_excl),
     h_(H_y_0j), h_(H_y_0j_excl),
-    
+
     h_(H3j_pT), h_(H3j_pT_excl),
     h_(H2j_pT), h_(H2j_pT_excl),
     h_(H1j_pT), h_(H1j_pT_excl),
-    
-    h_(H3j_mass),
 
     h_(jet1_mass), h_(jet2_mass), h_(jet3_mass),
     h_(jet1_pT),   h_(jet2_pT),   h_(jet3_pT),
@@ -519,7 +517,6 @@ int main(int argc, char** argv)
           const TLorentzVector H3j = H2j+(*jets[2].p);
           const Double_t H3j_pT = H3j.Pt();
 
-          h_H3j_mass .Fill(H3j.M());
           h_H3j_pT   .Fill(H3j_pT);
 
           if (njets==3) { // njets == 3; --------------------------=3
@@ -541,7 +538,7 @@ int main(int argc, char** argv)
   counter.prt(num_events.second);
   cout << endl;
   cout << "Successfully processed events: " << num_selected << endl;
-  
+
   // Close files
   fout->Write();
   fout->Close();

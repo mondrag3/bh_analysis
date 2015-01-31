@@ -9,6 +9,9 @@
 
 using namespace std;
 
+#define test(var) \
+cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
+
 // Safely get an object from TDirectory
 template<class T>
 inline T* get(TDirectory* dir, const char* name) {
@@ -46,7 +49,7 @@ int main(int argc, char** argv)
     cout << "\nInput file: " << f->GetName() << endl;
 
     // Number of events
-    const Double_t N = ((TH1D*)f->Get("N"))->GetAt(1);
+    const Double_t N = get<TH1D>(f,"N")->GetAt(1);
     const Double_t N_scale = 1./N;
     cout << "Events: " << N << endl;
 
@@ -93,7 +96,6 @@ int main(int argc, char** argv)
               h->Scale(N_scale);
               h->Clone();
             } else {
-              h->Scale(N_scale);
               TH1 *new_h = get<TH1>(out_dir,h->GetName());
               Double_t ent = new_h->GetEntries();
               new_h->Add(h,N_scale);
@@ -131,7 +133,6 @@ int main(int argc, char** argv)
               h->Scale(N_scale);
               h->Clone();
             } else {
-              h->Scale(N_scale);
               TH1 *new_h = get<TH1>(fout,h->GetName());
               Double_t ent = new_h->GetEntries();
               new_h->Add(h,N_scale);
