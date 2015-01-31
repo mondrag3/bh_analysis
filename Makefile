@@ -5,13 +5,15 @@ DIRS := lib bin
 
 CFLAGS := -std=c++11 -Wall -O3 -Itools/include -Iparts/include
 
+FASTJET_DIR := $(shell fastjet-config --prefix)
+FJ_CFLAGS := -I$(FASTJET_DIR)/include
+FJ_LIBS := -L$(FASTJET_DIR)/lib -lfastjet
+
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
 
 LHAPDF_CFLAGS := $(shell lhapdf-config --cppflags)
 LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
-
-FJ_LIBS := -lfastjet
 
 .PHONY: all misc tools parts clean deepclean
 
@@ -27,13 +29,17 @@ lib bin:
 	@mkdir -p $@
 
 # main object rules
-lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o lib/test_H3j.o lib/test_fj_H3j.o lib/inspect_bh.o lib/merge_parts.o: lib/%.o: src/%.cc
+lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o lib/test_H3j.o lib/inspect_bh.o lib/merge_parts.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
+lib/test_fj_H3j.o: lib/%.o: src/%.cc
+	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
+
 lib/hist_H2j.o lib/hist_H3j.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -DCONFDIR="\"`pwd -P`/config\"" \
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -DCONFDIR="\"`pwd -P`/config\"" \
 		-c $(filter %.cc,$^) -o $@
 
 # executable rules
@@ -59,7 +65,7 @@ bin/draw_together bin/test_H3j: bin/%: lib/%.o
 
 bin/test_fj_H3j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lm -lfastjettools -lfastjet
+	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
 
 bin/hist_H2j bin/hist_H3j: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
