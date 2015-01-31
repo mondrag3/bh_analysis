@@ -38,8 +38,8 @@ template<typename T> inline T sq(const T x) { return x*x; }
 
 // Histogram wrapper ************************************************
 class hist {
-  unordered_map<const weight*,TH1*> h;
 public:
+  unordered_map<const weight*,TH1*> h;
   hist(const string& name) {
     TH1* hist = css->mkhist(name);
     hist->Sumw2(false); // in ROOT6 true seems to be the default
@@ -52,18 +52,13 @@ public:
   }
 
   void Fill(Double_t x) noexcept {
-    for (auto& _h : h) {
+    for (auto& _h : h)
       _h.second->Fill(x,_h.first->is_float ? _h.first->w.f : _h.first->w.d);
-      if (!new_event) // decrement number of entries of still on the same event
-        _h.second->SetEntries(_h.second->GetEntries()-1);
-    }
   }
   
-  static bool new_event;
   static unique_ptr<const csshists> css;
   static unordered_map<const weight*,TDirectory*> dirs;
 };
-bool hist::new_event;
 unique_ptr<const csshists> hist::css;
 unordered_map<const weight*,TDirectory*> hist::dirs;
 
@@ -296,7 +291,7 @@ int main(int argc, char** argv)
 
   // Make directories ***********************************************
   for (auto& w : weight::all) {
-    hist::dirs[w.get()] = fout->mkdir(w->name.c_str());
+    hist::dirs[w.get()] = fout->mkdir((w->name+"_Jet"+jet_alg).c_str());
   }
 
   fout->cd();
@@ -381,8 +376,7 @@ int main(int argc, char** argv)
     if (prev_id!=event.eid) {
       h_N->Fill(0.5);
       ++num_selected;
-      hist::new_event = true;
-    } else if (hist::new_event) hist::new_event = false;
+    }
     prev_id = event.eid;
 
     // Higgs 4-vector
@@ -547,7 +541,7 @@ int main(int argc, char** argv)
   counter.prt(num_events.second);
   cout << endl;
   cout << "Successfully processed events: " << num_selected << endl;
-
+  
   // Close files
   fout->Write();
   fout->Close();

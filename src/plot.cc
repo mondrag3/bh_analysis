@@ -127,9 +127,10 @@ int main(int argc, char** argv)
   cout << endl;
   
   // Number of events
-  TH1 * const h_N = get<TH1>(fin,"N");
-  const Double_t N_events  = h_N->GetBinContent(1);
-  cout << "Events: " << N_events << endl;
+  TH1D * const h_N = get<TH1D>(fin,"N");
+  const Double_t N_events  = h_N->GetAt(1);
+  cout << "Entries: " << lround(h_N->GetEntries()) << endl;
+  cout << "Events: " << lround(N_events) << endl;
 
   // Properties
   set<string> pdf_name, jet_alg;
@@ -146,13 +147,13 @@ int main(int argc, char** argv)
     for (auto t : tok) {
       //cout << t << endl;
       if (!t.substr(0,3).compare("PDF")) pdf_name.emplace(t,3);
-      // TODO: Add Jet algorithm label
+      if (!t.substr(0,3).compare("Jet")) jet_alg .emplace(t,3);
     }
   }
   cout << endl;
   const size_t ndirs = dirs.size();
   
-  vector<TH1*> central;
+  vector<TH1D*> central;
   central.reserve(32);
   get_all(dirs[0],central);
   
@@ -188,10 +189,10 @@ int main(int argc, char** argv)
 
     // Cross section
     const Double_t sigma   = ( h_name.find("_N_incl") != string::npos
-                           ? h_cent->GetBinContent(1)
+                           ? h_cent->GetAt(1)
                            : h_cent->Integral(0,nbins+1) )/N_events;
-    const Double_t sigma_u = h_cent->GetBinContent(0)/N_events;
-    const Double_t sigma_o = h_cent->GetBinContent(nbins+1)/N_events;
+    const Double_t sigma_u = h_cent->GetAt(0)/N_events;
+    const Double_t sigma_o = h_cent->GetAt(nbins+1)/N_events;
     
     // Book vectors
     vector<Double_t> bins_edge(nbins,0.),
@@ -206,26 +207,26 @@ int main(int argc, char** argv)
     for (size_t i=0;i<nbins;++i) {
       bins_edge[i] = h_cent->GetBinLowEdge(i+1);
       bins_wdth[i] = h_cent->GetBinLowEdge(i+2) - bins_edge[i];
-      cent  [i]    = h_cent->GetBinContent(i+1);
+      cent  [i]    = h_cent->GetAt(i+1);
     }
     
     // Loop over other directories
     for (size_t di=1; di<ndirs; ++di) {
       TDirectory * const dir = dirs[di];
       const string dir_name(dir->GetName());
-      TH1 * const h = get<TH1>(dir,h_name.c_str());
+      TH1D * const h = get<TH1D>(dir,h_name.c_str());
       
-      if (dir_name.substr(dir_name.rfind('_')+1)=="up") { // pdf up
+      if (dir_name.find("_up_") != string::npos) { // pdf up
         for (size_t i=0;i<nbins;++i) 
-          pdf_hi[i] = h->GetBinContent(i+1) - cent[i];
+          pdf_hi[i] = h->GetAt(i+1) - cent[i];
         
-      } else if (dir_name.substr(dir_name.rfind('_')+1)=="down") { // pdf down
+      } else if (dir_name.find("_down_") != string::npos) { // pdf down
         for (size_t i=0;i<nbins;++i) 
-          pdf_lo[i] = cent[i] - h->GetBinContent(i+1);
+          pdf_lo[i] = cent[i] - h->GetAt(i+1);
         
       } else { // scale variation
         for (size_t i=0;i<nbins;++i) {
-          Double_t x = h->GetBinContent(i+1) - cent[i];
+          Double_t x = h->GetAt(i+1) - cent[i];
           if (x>0.) {
             if (scales_hi[i]<x) scales_hi[i] = x;
           } else {
@@ -235,11 +236,11 @@ int main(int argc, char** argv)
         }
       }
     }
-    
+
     for (size_t i=0;i<nbins;++i) {
       const Double_t unit = N_events*bins_wdth[i];
       cent     [i] /= unit;
-      h_cent->SetBinContent(i+1,cent[i]);
+      h_cent->SetAt(cent[i],i+1);
       pdf_lo   [i] /= unit;
       pdf_hi   [i] /= unit;
       scales_hi[i] /= unit;
@@ -324,7 +325,8 @@ int main(int argc, char** argv)
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    TLatex N_lbl(0.73,0.70, Form("Events: %ld",lround(h_cent->GetEntries())));
+    test(lround(h_cent->GetEntries()))
+    TLatex N_lbl(0.73,0.70, Form("Ent: %ld",lround(h_cent->GetEntries())));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
     N_lbl.SetTextFont(42);

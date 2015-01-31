@@ -46,7 +46,7 @@ int main(int argc, char** argv)
     cout << "\nInput file: " << f->GetName() << endl;
 
     // Number of events
-    const Double_t N = ((TH1*)f->Get("N"))->GetBinContent(1);
+    const Double_t N = ((TH1D*)f->Get("N"))->GetAt(1);
     const Double_t N_scale = 1./N;
     cout << "Events: " << N << endl;
 
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
   }
 
   // Set N to 1
-  get<TH1>(fout,"N")->SetBinContent(1,1);
+  get<TH1D>(fout,"N")->SetAt(1,1);
 
   // Write and close output root file
   fout->Write();
