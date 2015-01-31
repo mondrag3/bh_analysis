@@ -57,29 +57,12 @@ struct mu_ren_default: public mu_fcn {
 };
 
 //-----------------------------------------------
-// Reweighting computation
-//-----------------------------------------------
-
-class calc_base {
-protected:
-  static std::vector<std::unique_ptr<const calc_base>> all;
-  virtual void calc() const noexcept =0;
-
-public:
-  virtual ~calc_base() { }
-
-friend void calc_all_scales() noexcept; // run calc for all calcs
-};
-
-void calc_all_scales() noexcept;
-
-class reweighter;
-
-//-----------------------------------------------
 // Factorization --------------------------------
 //-----------------------------------------------
 
-class fac_calc: public calc_base {
+class reweighter;
+
+class fac_calc {
 protected:
   const mu_fcn* mu_f;
   bool pdf_unc;
@@ -88,20 +71,13 @@ protected:
   mutable double f[3][2][5], m[9], lf, si[3];
 
   fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept;
-  virtual void calc() const noexcept;
-
-  // Double_t quark_sum(Double_t x, Double_t mu_fac) const;
+  void calc() const noexcept;
 
 public:
-  virtual ~fac_calc();
-
-friend const fac_calc* mk_fac_calc(const mu_fcn*, bool, bool) noexcept;
+  ~fac_calc();
 
 friend class reweighter;
 };
-
-const fac_calc* mk_fac_calc(
-  const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false) noexcept;
 
 //-----------------------------------------------
 // Renormalization ------------------------------
@@ -109,7 +85,7 @@ const fac_calc* mk_fac_calc(
 
 enum class alphas_fcn: char { all_mu, two_mH };
 
-class ren_calc: public calc_base {
+class ren_calc {
 protected:
   const mu_fcn* mu_r;
   alphas_fcn asfcn;
@@ -118,19 +94,13 @@ protected:
   mutable double ar, lr, m0;
 
   ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept;
-  virtual void calc() const noexcept;
+  void calc() const noexcept;
 
 public:
-  virtual ~ren_calc();
-
-friend const ren_calc* mk_ren_calc(const mu_fcn*, alphas_fcn, bool) noexcept;
+  ~ren_calc();
 
 friend class reweighter;
 };
-
-const ren_calc* mk_ren_calc(
-  const mu_fcn* mu_r, alphas_fcn asfcn=alphas_fcn::all_mu, bool defaultPDF=false
-) noexcept;
 
 //-----------------------------------------------
 // Reweighter: combines fac and ren -------------
