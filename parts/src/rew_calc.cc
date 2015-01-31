@@ -58,7 +58,7 @@ void usePDFset(const std::string& setname) {
 
 mu_fcn::mu_fcn(const string& str) noexcept : str(str) { }
 
-mu_const::mu_const(double mu) noexcept
+mu_fixed::mu_fixed(double mu) noexcept
 : mu_fcn( [&mu] () { // lambda
     stringstream ss;
     ss << mu << "GeV";
@@ -66,7 +66,7 @@ mu_const::mu_const(double mu) noexcept
   } () ),
   _mu(mu)
 { }
-double mu_const::mu() const noexcept {
+double mu_fixed::mu() const noexcept {
   return _mu;
 }
 

@@ -1,17 +1,42 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
+#include <unordered_map>
+#include <stdexcept>
 
 #include <boost/program_options.hpp>
 
 #include <TFile.h>
 #include <TTree.h>
 
+#include "rapidxml-1.13/rapidxml.hpp"
+
 #include "rew_calc.hh"
 #include "timed_counter.hh"
 
 using namespace std;
 namespace po = boost::program_options;
+
+// using xml_doc  = rapidxml::xml_document<>;
+using xml_node = rapidxml::xml_node<>;
+using xml_attr = rapidxml::xml_attribute<char>;
+
+inline const char* get_attr(const xml_node *node, const char* name) {
+  xml_attr *attr = node->first_attribute(name);
+  if (attr) return attr->value();
+  else throw runtime_error(
+    string("XML: Node ") + node->name() + " has no attribute " + name
+  );
+}
+
+#define node_loop_all(root) \
+  for (xml_node *node = root->first_node(); node; \
+       node = node->next_sibling())
+
+#define node_loop(root,name) \
+  for (xml_node *node = root->first_node(name); node; \
+       node = node->next_sibling(name))
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -22,7 +47,7 @@ BHEvent event; // extern
 int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
-  string BH_file, weights_file, pdf_set;
+  string BH_file, weights_file, pdf_set, xml_file;
   bool old_bh, counter_newline;
   Long64_t num_events = 0;
 
@@ -33,6 +58,8 @@ int main(int argc, char** argv)
       ("help,h", "produce help message")
       ("bh", po::value<string>(&BH_file)->required(),
        "input event root file (Blackhat ntuple)")
+      ("config,c", po::value<string>(&xml_file)->required(),
+       "configuration xml file")
       ("weights,o", po::value<string>(&weights_file)->required(),
        "output root file with new event weights")
       ("pdf", po::value<string>(&pdf_set)->default_value("CT10nlo"),
@@ -59,6 +86,85 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
+  TTree *tree = new TTree("weights","");
+
+  unordered_map<string,const mu_fcn*> mu;
+  unordered_map<string,const fac_calc*> fac;
+  unordered_map<string,const ren_calc*> ren;
+  vector<const reweighter*> weights;
+
+  rapidxml::xml_document<> doc;
+	// Read the xml file into a vector
+	ifstream file(xml_file);
+	vector<char> buffer((istreambuf_iterator<char>(file)),
+                      istreambuf_iterator<char>());
+	buffer.push_back('\0');
+  file.close();
+	// Parse the buffer using the xml file parsing library into doc
+	doc.parse<0>(buffer.data());
+  // Find root node
+	const xml_node *format_node   = doc.first_node("bh_format");
+	const xml_node *energies_node = doc.first_node("energies");
+	const xml_node *scales_node   = doc.first_node("scales");
+	const xml_node *weights_node  = doc.first_node("weights");
+
+  alphas_fcn bh_alphas = alphas_fcn::all_mu;
+  if (const xml_attr* alphas = format_node->first_attribute("alphas")) {
+    if (!strcmp(alphas->value(),"two_mH")) bh_alphas = alphas_fcn::two_mH;
+  }
+
+  node_loop_all(energies_node) {
+    const char* tag_name = node->name();
+    const char* name = get_attr(node,"name");
+    if (mu.count(name)) {
+      cerr << "Warning: already existing energy definition " << name
+           << " is replaced" << endl;
+      delete mu[name];
+    }
+    if (!strcmp(tag_name,"Ht"))
+      mu[name] = new mu_fHt(atof(get_attr(node,"frac")));
+    else if (!strcmp(tag_name,"Ht_Higgs"))
+      mu[name] = new mu_fHt_Higgs(atof(get_attr(node,"frac")));
+    else if (!strcmp(tag_name,"fixed"))
+      mu[name] = new mu_fixed(atof(get_attr(node,"val")));
+    else
+      cerr << "Warning: unrecognized energy definition: " << tag_name << endl;
+  }
+
+  node_loop(scales_node,"fac") {
+    const char* name = get_attr(node,"name");
+    if (fac.count(name)) {
+      cerr << "Warning: already existing scale definition " << name
+           << " is replaced" << endl;
+      delete fac[name];
+    }
+    const xml_attr* pdfunc = node->first_attribute("pdfunc");
+    fac[name] = mk_fac_calc(
+      mu[get_attr(node,"energy")], pdfunc && !strcmp(pdfunc->value(),"true")
+    );
+  }
+
+  node_loop(scales_node,"ren") {
+    const char* name = get_attr(node,"name");
+    if (ren.count(name)) {
+      cerr << "Warning: already existing scale definition " << name
+           << " is replaced" << endl;
+      delete ren[name];
+    }
+    ren[name] = mk_ren_calc( mu[get_attr(node,"energy")], bh_alphas );
+  }
+
+  node_loop(weights_node,"weight") {
+    const xml_attr* pdfunc = node->first_attribute("pdfunc");
+    weights.push_back( new reweighter(
+      fac[get_attr(node,"fac")],
+      ren[get_attr(node,"ren")],
+      tree,
+      pdfunc && !strcmp(pdfunc->value(),"true")
+    ) );
+  }
+
+/*
   // Open input event file
   TFile *fin = new TFile(BH_file.c_str(),"READ");
   if (fin->IsZombie()) exit(1);
@@ -129,19 +235,6 @@ int main(int argc, char** argv)
   auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5),alphas_fcn::two_mH);
   auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25),alphas_fcn::two_mH);
 
-/*
-  auto Fac2MH = mk_fac_calc(new mu_const(125.*2.));
-  auto FacMH  = mk_fac_calc(new mu_const(125.));
-  auto FacMH2 = mk_fac_calc(new mu_const(125./2.));
-
-  auto Ren2MH = mk_ren_calc(new mu_const(125.*2.),alphas_fcn::two_mH);
-  auto RenMH  = mk_ren_calc(new mu_const(125.),alphas_fcn::two_mH);
-  auto RenMH2 = mk_ren_calc(new mu_const(125./2.),alphas_fcn::two_mH);
-*/
-
-  // auto FacDef = mk_fac_calc(new mu_fac_default());
-  // auto RenDef = mk_ren_calc(new mu_ren_default(),alphas_fcn::two_mH);
-
   // define reweighting scales combinatios
   // and add branches to tree
   vector<reweighter*> rew {
@@ -152,17 +245,6 @@ int main(int argc, char** argv)
     new reweighter(FacHt4,RenHt4,tree),
     new reweighter(FacHt1,RenHt1,tree),
     new reweighter(FacHt1,RenHt2,tree)
-
-    // new reweighter(FacDef,RenDef,tree/*,true*/),
-    // new reweighter(FacMH,RenMH,tree)
-
-    // new reweighter(FacHt4,RenHt4,tree),
-    // new reweighter(FacHt2,RenHt2,tree),
-    // new reweighter(FacHt1,RenHt1,tree),
-    //
-    // new reweighter(Fac2MH,Ren2MH,tree),
-    // new reweighter(FacMH, RenMH, tree),
-    // new reweighter(FacMH2,RenMH2,tree)
   };
 
   // Reading events from the input ntuple ***************************
@@ -199,6 +281,7 @@ int main(int argc, char** argv)
   delete fin;
 
   for (auto r : rew) delete r;
+*/
 
   return 0;
 }

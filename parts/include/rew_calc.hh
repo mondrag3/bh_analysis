@@ -23,11 +23,11 @@ struct mu_fcn {
   virtual ~mu_fcn() { }
 };
 
-struct mu_const: public mu_fcn {
+struct mu_fixed: public mu_fcn {
   double _mu;
-  mu_const(double mu) noexcept;
+  mu_fixed(double mu) noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_const() { }
+  virtual ~mu_fixed() { }
 };
 
 struct mu_fHt: public mu_fcn {
