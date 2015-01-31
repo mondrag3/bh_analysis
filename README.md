@@ -41,7 +41,7 @@ Note: Numbers of entries in histograms are also combined.
 * Purpose: Plot histograms with scale variation and PDF uncertainty bands.
 * Input: A single root file with histograms in directories corresponding to scale and PDF variations.
 * Output: A single pdf file with plots on multiple pages.
-* Usage example: `./bin/plot NLO.root` will output NLO.pdf. `-o` flag is supported.
+* Usage example: `./bin/plot foo/bar/NLO.root` will output `NLO.pdf` in the current directory. `-o` flag is also supported.
 
 ---
 
