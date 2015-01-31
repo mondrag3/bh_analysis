@@ -1,5 +1,5 @@
 # BlackHat ntuple analysis
-* Author: Ivan Pogrebnyak, MSU
+* Author: Ivan Pogrebnyak, [MSU](http://www.pa.msu.edu/), ATLAS
 * Repository: https://github.com/ivankp/bh_analysis
 * Source (zip): https://github.com/ivankp/bh_analysis/archive/master.zip
 
@@ -66,4 +66,4 @@ The code is written in C++11 and requires a C++ compiler which supports the -std
 * Make a copy of `src/hist_H3j`, e.g. <br />
   `cp src/hist_H3j src/hist_photon3j`
 * Add the new analysis to the `Makefile` by analogy with `src/hist_H2j` and `src/hist_H3j`
-* If you use GitHub, submit a pull request, so that your code can be incorporated into the repository for the benefit of others and maintanance.
+* If you use GitHub, please submit a pull request, so that your code can be incorporated into the repository for the benefit of others and maintanance.
