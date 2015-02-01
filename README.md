@@ -12,8 +12,8 @@ Below is the list of executables, their purpose, and usage examples. The list is
 ### reweigh
 * Purpose: Reweighting of BlackHat ntuples.
 * Output: A root ntuple with only new weights.
-* Usage example: `./bin/reweigh --bh=born_bh.root -o bort_weights.root`
-* Not yet implemented: arguments for selecting scales
+* Usage example: `./bin/reweigh --bh=born_bh.root -c weights.xml -o bort_weights.root`
+* XML config file: Provides new weights definitions; check the `config` directory for examples.
 
 ### hist_foo
 * Purpose: This this the analysis program. It produces plots for different weights.
