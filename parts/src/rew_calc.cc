@@ -1,7 +1,6 @@
 #include "rew_calc.hh"
 
 #include <iostream>
-#include <sstream>
 #include <valarray>
 #include <cmath>
 
@@ -56,133 +55,80 @@ void usePDFset(const std::string& setname) {
 // Function classes to get scales values
 //-----------------------------------------------
 
-mu_fcn::mu_fcn(const string& str) noexcept : str(str) { }
+mu_fixed::mu_fixed(double mu) noexcept : _mu(mu) { }
+double mu_fixed::mu() const noexcept { return _mu; }
 
-mu_fixed::mu_fixed(double mu) noexcept
-: mu_fcn( [&mu] () { // lambda
-    stringstream ss;
-    ss << mu << "GeV";
-    return ss.str();
-  } () ),
-  _mu(mu)
-{ }
-double mu_fixed::mu() const noexcept {
-  return _mu;
-}
+mu_fHt::mu_fHt(double fHt) noexcept : fHt(fHt) { }
+double mu_fHt::mu() const noexcept { return fHt*event.Ht(); }
 
-mu_fHt::mu_fHt(double fHt) noexcept
-: mu_fcn( [&fHt] () { // lambda
-    stringstream ss;
-    ss << fHt << "Ht";
-    return ss.str();
-  } () ),
-  fHt(fHt)
-{ }
-double mu_fHt::mu() const noexcept {
-  return fHt*event.Ht();
-}
+mu_fHt_Higgs::mu_fHt_Higgs(double fHt) noexcept : fHt(fHt) { }
+double mu_fHt_Higgs::mu() const noexcept { return fHt*event.Ht_Higgs(); }
 
-mu_fHt_Higgs::mu_fHt_Higgs(double fHt) noexcept
-: mu_fcn( [&fHt] () { // lambda
-    stringstream ss;
-    ss << fHt << "Ht";
-    return ss.str();
-  } () ),
-  fHt(fHt)
-{ }
-double mu_fHt_Higgs::mu() const noexcept {
-  return fHt*event.Ht_Higgs();
-}
+mu_fac_default::mu_fac_default() noexcept { }
+double mu_fac_default::mu() const noexcept { return event.fac_scale; }
 
-mu_fac_default::mu_fac_default() noexcept : mu_fcn("def") { }
-double mu_fac_default::mu() const noexcept {
-  return event.fac_scale;
-}
-
-mu_ren_default::mu_ren_default() noexcept : mu_fcn("def") { }
-double mu_ren_default::mu() const noexcept {
-  return event.ren_scale;
-}
+mu_ren_default::mu_ren_default() noexcept { }
+double mu_ren_default::mu() const noexcept { return event.ren_scale; }
 
 //-----------------------------------------------
 // Reweighting computation
 //-----------------------------------------------
 
-std::vector<std::unique_ptr<const calc_base>> calc_base::all;
-
-void calc_all_scales() noexcept {
-  for (auto& c : calc_base::all ) c->calc();
-}
-
 // Factorization --------------------------------
 
-const fac_calc*
-mk_fac_calc(const mu_fcn* mu_f, bool unc, bool defaultPDF) noexcept {
-  return new fac_calc(mu_f,unc,defaultPDF);
-}
-
 fac_calc::fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept
-: calc_base(), mu_f(mu_f), pdf_unc(pdf_unc), defaultPDF(defaultPDF)
-{
-  all.push_back( unique_ptr<const calc_base>(this) );
-}
+: mu_f(mu_f), pdf_unc(pdf_unc), defaultPDF(defaultPDF) { }
 
-fac_calc::~fac_calc() {
-  delete mu_f;
-}
+fac_calc::~fac_calc() { }
 
 // Renormalization ------------------------------
 
-const ren_calc*
-mk_ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept {
-  return new ren_calc(mu_r,asfcn,defaultPDF);
-}
+ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept
+: mu_r(mu_r), defaultPDF(defaultPDF), ar(1.) { }
 
-ren_calc::ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept
-: calc_base(), mu_r(mu_r), asfcn(asfcn), defaultPDF(defaultPDF), ar(1.)
-{
-  all.push_back( unique_ptr<const calc_base>(this) );
-}
+ren_calc::~ren_calc() { }
 
-ren_calc::~ren_calc() {
-  delete mu_r;
-}
+alphas_fcn ren_calc::bh_alphas;
 
 // Reweighter: combines fac and ren -------------
 
 // Constructor creates branches on tree
-reweighter::reweighter(const fac_calc* fac, const ren_calc* ren,
+reweighter::reweighter(const pair<const fac_calc*,string>& fac,
+                       const pair<const ren_calc*,string>& ren,
                        TTree* tree, bool pdf_unc)
-: fac(fac), ren(ren), pdf_unc(pdf_unc), nk(pdf_unc ? 3 : 1)
+: fac(fac.first), ren(ren.first), pdf_unc(pdf_unc), nk(pdf_unc ? 3 : 1)
 {
   if (!pdfset) {
     cerr << "\033[31mNo PDF loaded\033[0m"  << endl;
     exit(1);
   }
 
-  stringstream ss;
-  ss <<  "Fac" << fac->mu_f->str
-     << "_Ren" << ren->mu_r->str
-     << "_PDF" << pdfname;
+  string name("Fac");
+  name += fac.second;
+  name += "_Ren";
+  name += ren.second;
+  name += "_PDF";
+  name += pdfname;
 
-  string name( ss.str()+"_cent" );
   cout << "Creating branch: " << name << endl;
   tree->Branch(name.c_str(), &weight[0], (name+"/F").c_str());
 
   if (pdf_unc) {
-    if (!fac->pdf_unc) {
+    if (!fac.first->pdf_unc) {
       cerr << "PDF uncertanties are not set to be calculated for "
-           << fac->mu_f->str << endl;
+           << fac.second << endl;
       exit(1);
     }
 
-    name = ss.str()+"_down";
-    cout << "Creating branch: " << name << endl;
-    tree->Branch(name.c_str(), &weight[1], (name+"/F").c_str());
+    string _name;
 
-    name = ss.str()+"_up";
-    cout << "Creating branch: " << name << endl;
-    tree->Branch(name.c_str(), &weight[2], (name+"/F").c_str());
+    _name = name+"_down";
+    cout << "Creating branch: " << _name << endl;
+    tree->Branch(_name.c_str(), &weight[1], (_name+"/F").c_str());
+
+    _name = name+"_up";
+    cout << "Creating branch: " << _name << endl;
+    tree->Branch(_name.c_str(), &weight[2], (_name+"/F").c_str());
   }
 }
 
@@ -330,7 +276,7 @@ void ren_calc::calc() const noexcept {
   // Calculate α_s change from renormalization
   if (!defaultPDF) {
     const double to_alphas = pdf->alphasQ(mu);
-    switch (asfcn) {
+    switch (bh_alphas) {
       case alphas_fcn::all_mu:
         ar = pow( to_alphas/alphas, n ); break;
       case alphas_fcn::two_mH:
@@ -373,6 +319,4 @@ void reweighter::stitch() const noexcept {
       weight[k] = 0.;
     }
   }
-
-  // test(weight[0])
 }

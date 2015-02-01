@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <memory>
+#include <algorithm>
 
 #include "BHEvent.hh"
 
@@ -16,41 +16,45 @@ void usePDFset(const std::string& setname);
 // Function classes to get scales values
 //-----------------------------------------------
 
-struct mu_fcn {
-  std::string str;
-  mu_fcn(const std::string& str) noexcept;
+class mu_fcn {
+public:
   virtual double mu() const noexcept =0;
   virtual ~mu_fcn() { }
 };
 
-struct mu_fixed: public mu_fcn {
+class mu_fixed: public mu_fcn {
   double _mu;
+public:
   mu_fixed(double mu) noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fixed() { }
 };
 
-struct mu_fHt: public mu_fcn {
+class mu_fHt: public mu_fcn {
   double fHt;
+public:
   mu_fHt(double fHt) noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fHt() { }
 };
 
-struct mu_fHt_Higgs: public mu_fcn {
+class mu_fHt_Higgs: public mu_fcn {
   double fHt;
+public:
   mu_fHt_Higgs(double fHt) noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fHt_Higgs() { }
 };
 
-struct mu_fac_default: public mu_fcn {
+class mu_fac_default: public mu_fcn {
+public:
   mu_fac_default() noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_fac_default() { }
 };
 
-struct mu_ren_default: public mu_fcn {
+class mu_ren_default: public mu_fcn {
+public:
   mu_ren_default() noexcept;
   virtual double mu() const noexcept;
   virtual ~mu_ren_default() { }
@@ -70,10 +74,9 @@ protected:
 
   mutable double f[3][2][5], m[9], lf, si[3];
 
-  fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept;
-  void calc() const noexcept;
-
 public:
+  fac_calc(const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false) noexcept;
+  void calc() const noexcept;
   ~fac_calc();
 
 friend class reweighter;
@@ -88,16 +91,16 @@ enum class alphas_fcn: char { all_mu, two_mH };
 class ren_calc {
 protected:
   const mu_fcn* mu_r;
-  alphas_fcn asfcn;
   bool defaultPDF;
 
   mutable double ar, lr, m0;
 
-  ren_calc(const mu_fcn* mu_r, alphas_fcn asfcn, bool defaultPDF) noexcept;
-  void calc() const noexcept;
-
 public:
+  ren_calc(const mu_fcn* mu_r, bool defaultPDF=false) noexcept;
+  void calc() const noexcept;
   ~ren_calc();
+
+  static alphas_fcn bh_alphas;
 
 friend class reweighter;
 };
@@ -118,7 +121,8 @@ class reweighter {
 
 public:
   // Constructor creates branches on tree
-  reweighter(const fac_calc* fac, const ren_calc* ren,
+  reweighter(const std::pair<const fac_calc*,std::string>& fac,
+             const std::pair<const ren_calc*,std::string>& ren,
              TTree* tree, bool pdf_unc=false);
   ~reweighter();
   void stitch() const noexcept;

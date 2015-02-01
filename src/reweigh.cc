@@ -57,11 +57,11 @@ int main(int argc, char** argv)
     all_opt.add_options()
       ("help,h", "produce help message")
       ("bh", po::value<string>(&BH_file)->required(),
-       "input event root file (Blackhat ntuple)")
+       "*input event root file (Blackhat ntuple)")
       ("config,c", po::value<string>(&xml_file)->required(),
-       "configuration xml file")
-      ("weights,o", po::value<string>(&weights_file)->required(),
-       "output root file with new event weights")
+       "*configuration XML file")
+      ("output,o", po::value<string>(&weights_file)->required(),
+       "*output root file with new event weights")
       ("pdf", po::value<string>(&pdf_set)->default_value("CT10nlo"),
        "LHAPDF set name")
       ("num-events,n", po::value<Long64_t>(&num_events),
@@ -86,85 +86,6 @@ int main(int argc, char** argv)
   }
   // END OPTIONS ****************************************************
 
-  TTree *tree = new TTree("weights","");
-
-  unordered_map<string,const mu_fcn*> mu;
-  unordered_map<string,const fac_calc*> fac;
-  unordered_map<string,const ren_calc*> ren;
-  vector<const reweighter*> weights;
-
-  rapidxml::xml_document<> doc;
-	// Read the xml file into a vector
-	ifstream file(xml_file);
-	vector<char> buffer((istreambuf_iterator<char>(file)),
-                      istreambuf_iterator<char>());
-	buffer.push_back('\0');
-  file.close();
-	// Parse the buffer using the xml file parsing library into doc
-	doc.parse<0>(buffer.data());
-  // Find root node
-	const xml_node *format_node   = doc.first_node("bh_format");
-	const xml_node *energies_node = doc.first_node("energies");
-	const xml_node *scales_node   = doc.first_node("scales");
-	const xml_node *weights_node  = doc.first_node("weights");
-
-  alphas_fcn bh_alphas = alphas_fcn::all_mu;
-  if (const xml_attr* alphas = format_node->first_attribute("alphas")) {
-    if (!strcmp(alphas->value(),"two_mH")) bh_alphas = alphas_fcn::two_mH;
-  }
-
-  node_loop_all(energies_node) {
-    const char* tag_name = node->name();
-    const char* name = get_attr(node,"name");
-    if (mu.count(name)) {
-      cerr << "Warning: already existing energy definition " << name
-           << " is replaced" << endl;
-      delete mu[name];
-    }
-    if (!strcmp(tag_name,"Ht"))
-      mu[name] = new mu_fHt(atof(get_attr(node,"frac")));
-    else if (!strcmp(tag_name,"Ht_Higgs"))
-      mu[name] = new mu_fHt_Higgs(atof(get_attr(node,"frac")));
-    else if (!strcmp(tag_name,"fixed"))
-      mu[name] = new mu_fixed(atof(get_attr(node,"val")));
-    else
-      cerr << "Warning: unrecognized energy definition: " << tag_name << endl;
-  }
-
-  node_loop(scales_node,"fac") {
-    const char* name = get_attr(node,"name");
-    if (fac.count(name)) {
-      cerr << "Warning: already existing scale definition " << name
-           << " is replaced" << endl;
-      delete fac[name];
-    }
-    const xml_attr* pdfunc = node->first_attribute("pdfunc");
-    fac[name] = mk_fac_calc(
-      mu[get_attr(node,"energy")], pdfunc && !strcmp(pdfunc->value(),"true")
-    );
-  }
-
-  node_loop(scales_node,"ren") {
-    const char* name = get_attr(node,"name");
-    if (ren.count(name)) {
-      cerr << "Warning: already existing scale definition " << name
-           << " is replaced" << endl;
-      delete ren[name];
-    }
-    ren[name] = mk_ren_calc( mu[get_attr(node,"energy")], bh_alphas );
-  }
-
-  node_loop(weights_node,"weight") {
-    const xml_attr* pdfunc = node->first_attribute("pdfunc");
-    weights.push_back( new reweighter(
-      fac[get_attr(node,"fac")],
-      ren[get_attr(node,"ren")],
-      tree,
-      pdfunc && !strcmp(pdfunc->value(),"true")
-    ) );
-  }
-
-/*
   // Open input event file
   TFile *fin = new TFile(BH_file.c_str(),"READ");
   if (fin->IsZombie()) exit(1);
@@ -225,27 +146,88 @@ int main(int argc, char** argv)
 
   TTree *tree = new TTree("weights","");
 
-  // pointers to calc (automatically collected)
-  // (as well as argument pointers)
-  auto FacHt1 = mk_fac_calc(new mu_fHt_Higgs(1.));
-  auto FacHt2 = mk_fac_calc(new mu_fHt_Higgs(0.5),true);
-  auto FacHt4 = mk_fac_calc(new mu_fHt_Higgs(0.25));
+  // Setup new weights **********************************************
+  unordered_map<string,const mu_fcn*> mu;
+  unordered_map<string,const fac_calc*> fac;
+  unordered_map<string,const ren_calc*> ren;
+  vector<const reweighter*> weights;
 
-  auto RenHt1 = mk_ren_calc(new mu_fHt_Higgs(1.),alphas_fcn::two_mH);
-  auto RenHt2 = mk_ren_calc(new mu_fHt_Higgs(0.5),alphas_fcn::two_mH);
-  auto RenHt4 = mk_ren_calc(new mu_fHt_Higgs(0.25),alphas_fcn::two_mH);
+  rapidxml::xml_document<> doc;
+	// Read the xml file into a vector
+	ifstream file(xml_file);
+	vector<char> buffer((istreambuf_iterator<char>(file)),
+                      istreambuf_iterator<char>());
+	buffer.push_back('\0');
+  file.close();
+	// Parse the buffer using the xml file parsing library into doc
+	doc.parse<0>(buffer.data());
+  // Find root node
+	const xml_node *format_node   = doc.first_node("bh_format");
+	const xml_node *energies_node = doc.first_node("energies");
+	const xml_node *scales_node   = doc.first_node("scales");
+	const xml_node *weights_node  = doc.first_node("weights");
 
-  // define reweighting scales combinatios
-  // and add branches to tree
-  vector<reweighter*> rew {
-    new reweighter(FacHt2,RenHt2,tree,true),
-    new reweighter(FacHt2,RenHt1,tree),
-    new reweighter(FacHt2,RenHt4,tree),
-    new reweighter(FacHt4,RenHt2,tree),
-    new reweighter(FacHt4,RenHt4,tree),
-    new reweighter(FacHt1,RenHt1,tree),
-    new reweighter(FacHt1,RenHt2,tree)
-  };
+  if (const xml_attr* alphas = format_node->first_attribute("alphas")) {
+    if (!strcmp(alphas->value(),"two_mH"))
+      ren_calc::bh_alphas = alphas_fcn::two_mH;
+  }
+
+  node_loop_all(energies_node) {
+    const char* tag_name = node->name();
+    const char* name = get_attr(node,"name");
+    if (mu.count(name)) {
+      cerr << "Warning: already existing energy definition " << name
+           << " is replaced" << endl;
+      delete mu[name];
+    }
+    if (!strcmp(tag_name,"Ht"))
+      mu[name] = new mu_fHt(atof(get_attr(node,"frac")));
+    else if (!strcmp(tag_name,"Ht_Higgs"))
+      mu[name] = new mu_fHt_Higgs(atof(get_attr(node,"frac")));
+    else if (!strcmp(tag_name,"fixed"))
+      mu[name] = new mu_fixed(atof(get_attr(node,"val")));
+    else if (!strcmp(tag_name,"fac_default"))
+      mu[name] = new mu_fac_default();
+    else if (!strcmp(tag_name,"ren_default"))
+      mu[name] = new mu_ren_default();
+    else
+      cerr << "Warning: unrecognized energy definition: " << tag_name << endl;
+  }
+
+  node_loop(scales_node,"fac") {
+    const char* name = get_attr(node,"name");
+    if (fac.count(name)) {
+      cerr << "Warning: already existing scale definition " << name
+           << " is replaced" << endl;
+      delete fac[name];
+    }
+    const xml_attr* pdfunc = node->first_attribute("pdfunc");
+    fac[name] = new fac_calc(
+      mu[get_attr(node,"energy")], pdfunc && !strcmp(pdfunc->value(),"true")
+    );
+  }
+
+  node_loop(scales_node,"ren") {
+    const char* name = get_attr(node,"name");
+    if (ren.count(name)) {
+      cerr << "Warning: already existing scale definition " << name
+           << " is replaced" << endl;
+      delete ren[name];
+    }
+    ren[name] = new ren_calc( mu[get_attr(node,"energy")] );
+  }
+
+  node_loop(weights_node,"weight") {
+    const xml_attr* pdfunc = node->first_attribute("pdfunc");
+    const char* fac_name = get_attr(node,"fac");
+    const char* ren_name = get_attr(node,"ren");
+    weights.push_back( new reweighter(
+      make_pair(fac[fac_name],fac_name),
+      make_pair(ren[ren_name],ren_name),
+      tree,
+      pdfunc && !strcmp(pdfunc->value(),"true")
+    ) );
+  }
 
   // Reading events from the input ntuple ***************************
   cout << "\nReading " << num_events << " events" << endl;
@@ -258,15 +240,13 @@ int main(int argc, char** argv)
     counter(ent);
     tin->GetEntry(ent);
 
-    // test(ent)
-    // test(event.weight)
-
     // use event id for event number
     event.eid = ent;
 
     // REWEIGHTING
-    calc_all_scales();
-    for (auto r : rew) r->stitch();
+    for (auto f : fac) f.second->calc();
+    for (auto r : ren) r.second->calc();
+    for (auto w : weights) w->stitch();
     tree->Fill();
   }
   counter.prt(num_events);
@@ -280,8 +260,9 @@ int main(int argc, char** argv)
   fin->Close();
   delete fin;
 
-  for (auto r : rew) delete r;
-*/
+  for (auto f : fac) delete f.second;
+  for (auto r : ren) delete r.second;
+  for (auto w : weights) delete w;
 
   return 0;
 }
