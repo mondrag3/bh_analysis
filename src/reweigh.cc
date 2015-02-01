@@ -260,6 +260,7 @@ int main(int argc, char** argv)
   fin->Close();
   delete fin;
 
+  for (auto m : mu)  delete m.second;
   for (auto f : fac) delete f.second;
   for (auto r : ren) delete r.second;
   for (auto w : weights) delete w;
