@@ -88,7 +88,7 @@ ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept
 
 ren_calc::~ren_calc() { }
 
-alphas_fcn ren_calc::bh_alphas;
+alphas_fcn ren_calc::bh_alphas = alphas_fcn::all_mu;
 
 // Reweighter: combines fac and ren -------------
 
