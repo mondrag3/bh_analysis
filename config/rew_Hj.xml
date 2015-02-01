@@ -3,8 +3,15 @@
 <energies>
   <!--
     Ht = \sum_i^{all} p_{T,i}
+      Example: <Ht name="Ht2" frac="0.5" />
     Ht_Higgs = \sqrt{m_H^2 + p_{T,H}^2} + \sum_i^{partons} p_{T,i}
+      Example: <Ht_Higgs name="Ht2" frac="0.5" />
     fixed = energy in GeV
+      Example: <fixed name="mH" val="125" />
+    fac_default = original ntuple factorization scale
+      Example: <fac_default name="fac_def" />
+    ren_default = original ntuple renormalization scale
+      Example: <ren_default name="ren_def" />
   -->
   <Ht_Higgs name="Ht"  frac="1."   />
   <Ht_Higgs name="Ht2" frac="0.5"  />
