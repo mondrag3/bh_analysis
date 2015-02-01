@@ -1,0 +1,32 @@
+<bh_format alphas="two_mH" />
+
+<energies>
+  <!--
+    Ht = \sum_i^{all} p_{T,i}
+    Ht_Higgs = \sqrt{m_H^2 + p_{T,H}^2} + \sum_i^{partons} p_{T,i}
+    fixed = energy in GeV
+  -->
+  <Ht_Higgs name="Ht"  frac="1."   />
+  <Ht_Higgs name="Ht2" frac="0.5"  />
+  <Ht_Higgs name="Ht4" frac="0.25" />
+</energies>
+
+<scales>
+  <fac name="Ht"  energy="Ht"  />
+  <fac name="Ht2" energy="Ht2" pdfunc="true" />
+  <fac name="Ht4" energy="Ht4" />
+
+  <ren name="Ht"  energy="Ht"  />
+  <ren name="Ht2" energy="Ht2" />
+  <ren name="Ht4" energy="Ht4" />
+</scales>
+
+<weights>
+  <weight fac="Ht2" ren="Ht2" pdfunc="true" />
+  <weight fac="Ht2" ren="Ht"  />
+  <weight fac="Ht2" ren="Ht4" />
+  <weight fac="Ht4" ren="Ht2" />
+  <weight fac="Ht4" ren="Ht4" />
+  <weight fac="Ht"  ren="Ht"  />
+  <weight fac="Ht"  ren="Ht2" />
+</weights>
