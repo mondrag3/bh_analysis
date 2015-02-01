@@ -31,7 +31,7 @@ Below is the list of executables, their purpose, and usage examples. The list is
 Note: Numbers of entries in histograms are not numbers of events, but numbers of ntuple entries. These are not the same for real ntuples.
 
 ### merge_parts
-* Purpose: Merge together different kinds of ntuples (born, real, integrated-subtraction, virtual).
+* Purpose: Merge together histograms for different kinds of ntuples (born, real, integrated-subtraction, virtual).
 * Output: Root file in the same format with merged histograms.
 * Usage example: `./bin/merge_parts NLO.root B.root RS.root I.root V.root`
 
@@ -41,7 +41,7 @@ Note: Numbers of entries in histograms are also combined.
 * Purpose: Plot histograms with scale variation and PDF uncertainty bands.
 * Input: A single root file with histograms in directories corresponding to scale and PDF variations.
 * Output: A single pdf file with plots on multiple pages.
-* Usage example: `./bin/plot foo/bar/NLO.root` will output `NLO.pdf` in the current directory. `-o` flag is also supported.
+* Usage example: `./bin/plot foo/bar/NLO.root` will output `NLO.pdf` in the current directory. \`-o` flag is also supported.
 
 ---
 
@@ -50,7 +50,7 @@ Note: Numbers of entries in histograms are also combined.
 * To recompile: `make`
 
 ### Requirements
-The code is written in C++11 and requires a C++ compiler which supports the -std=c++11 flag; -std=c++0x is insufficient.
+The code is written in C++11 and requires a C++ compiler which supports the -std=c++11 flag; \-std=c++0x is insufficient.
 
 #### Other requirements:
 * ROOT: <https://root.cern.ch/drupal/> -- either version 5 or 6 is ok
