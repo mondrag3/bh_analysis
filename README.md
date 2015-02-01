@@ -31,7 +31,7 @@ Below is the list of executables, their purpose, and usage examples. The list is
 Note: Numbers of entries in histograms are not numbers of events, but numbers of ntuple entries. These are not the same for real ntuples.
 
 ### merge_parts
-* Purpose: Merge together different kinds of ntuples (born, real, integrated-subtraction, virtual).
+* Purpose: Merge together histograms for different kinds of ntuples (born, real, integrated-subtraction, virtual).
 * Output: Root file in the same format with merged histograms.
 * Usage example: `./bin/merge_parts NLO.root B.root RS.root I.root V.root`
 
