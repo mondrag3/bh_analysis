@@ -58,7 +58,7 @@ public:
         _h.second->SetEntries(_h.second->GetEntries()-1);
     }
   }
-  
+
   static bool new_event;
   static unique_ptr<const csshists> css;
   static unordered_map<const weight*,TDirectory*> dirs;

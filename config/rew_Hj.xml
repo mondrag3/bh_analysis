@@ -1,7 +1,8 @@
 <!-- Input BlackHat ntuple properties -->
 <!--
-  alphas="all_mu": all powers of \alpha_{s} at the same scale
-  alphas="two_mH": two powers of \alpha_{s} at mass of Higgs, the rest at a chosed scale
+  alphas="all_mu": all powers of \alpha_{s} at the same chosen scale
+  alphas="two_mH": two powers of \alpha_{s} at mass of Higgs, the rest at a chosen scale
+  If omitted, all_mu is default
 -->
 <bh_format alphas="two_mH" />
 

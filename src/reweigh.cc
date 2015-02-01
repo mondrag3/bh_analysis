@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 
   TTree *tree = new TTree("weights","");
 
-  // Setup new weights **********************************************
+  // Setup new weights - read xml config ****************************
   unordered_map<string,const mu_fcn*> mu;
   unordered_map<string,const fac_calc*> fac;
   unordered_map<string,const ren_calc*> ren;
@@ -167,9 +167,25 @@ int main(int argc, char** argv)
 	const xml_node *scales_node   = doc.first_node("scales");
 	const xml_node *weights_node  = doc.first_node("weights");
 
-  if (const xml_attr* alphas = format_node->first_attribute("alphas")) {
-    if (!strcmp(alphas->value(),"two_mH"))
-      ren_calc::bh_alphas = alphas_fcn::two_mH;
+  // Check that nodes exist
+  if (!energies_node) {
+    cerr << "No energies node in XML config file" << endl;
+    exit(1);
+  }
+  if (!scales_node) {
+    cerr << "No scales node in XML config file" << endl;
+    exit(1);
+  }
+  if (!weights_node) {
+    cerr << "No weights node in XML config file" << endl;
+    exit(1);
+  }
+
+  if (format_node) {
+    if (const xml_attr* alphas = format_node->first_attribute("alphas")) {
+      if (!strcmp(alphas->value(),"two_mH"))
+        ren_calc::bh_alphas = alphas_fcn::two_mH;
+    }
   }
 
   node_loop_all(energies_node) {
