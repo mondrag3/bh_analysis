@@ -41,7 +41,7 @@ Note: Numbers of entries in histograms are also combined.
 * Purpose: Plot histograms with scale variation and PDF uncertainty bands.
 * Input: A single root file with histograms in directories corresponding to scale and PDF variations.
 * Output: A single pdf file with plots on multiple pages.
-* Usage example: `./bin/plot foo/bar/NLO.root` will output `NLO.pdf` in the current directory. \`-o` flag is also supported.
+* Usage example: `./bin/plot foo/bar/NLO.root` will output `NLO.pdf` in the current directory. `-o` flag is also supported.
 
 ---
 
@@ -50,7 +50,7 @@ Note: Numbers of entries in histograms are also combined.
 * To recompile: `make`
 
 ### Requirements
-The code is written in C++11 and requires a C++ compiler which supports the -std=c++11 flag; \-std=c++0x is insufficient.
+The code is written in C++11 and requires a C++ compiler which supports the -std=c++11 flag; -std=c++0x is insufficient.
 
 #### Other requirements:
 * ROOT: <https://root.cern.ch/drupal/> -- either version 5 or 6 is ok
