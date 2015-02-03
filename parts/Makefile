@@ -12,8 +12,9 @@ LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 .PHONY: all clean
 
 all: lib bin \
-	   lib/BHEvent.o lib/rew_calc.o lib/SJClusterAlg.o lib/weight.o \
-		 bin/test_rew_calc
+	   lib/BHEvent.o lib/rew_calc.o lib/SJClusterAlg.o lib/weight.o
+
+# bin/test_rew_calc
 
 # directories rule
 lib bin:
