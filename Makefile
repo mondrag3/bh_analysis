@@ -3,11 +3,11 @@ CPP := g++
 
 DIRS := lib bin
 
-CFLAGS := -std=c++11 -Wall -O3 -Itools/include -Iparts/include
+CFLAGS := -std=c++11 -Wall -O3 -Itools -Iparts
 
-FASTJET_DIR := $(shell fastjet-config --prefix)
-FJ_CFLAGS := -I$(FASTJET_DIR)/include
-FJ_LIBS := -L$(FASTJET_DIR)/lib -lfastjet
+FJ_DIR    := $(shell fastjet-config --prefix)
+FJ_CFLAGS := -I$(FJ_DIR)/include
+FJ_LIBS   := -L$(FJ_DIR)/lib -lfastjet
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -15,34 +15,50 @@ ROOT_LIBS   := $(shell root-config --libs)
 LHAPDF_CFLAGS := $(shell lhapdf-config --cppflags)
 LHAPDF_LIBS   := $(shell lhapdf-config --ldflags)
 
-.PHONY: all misc tools parts clean deepclean
+.PHONY: all misc clean
 
-all: $(DIRS) bin/reweigh bin/hist_H2j bin/hist_H3j bin/plot bin/test_H3j bin/test_fj_H3j bin/inspect_bh bin/merge_parts
+HIST_SRC := $(filter-out src/hist_weights.cc,$(wildcard src/hist_*.cc))
+HIST_OBJ := $(patsubst src/%.cc,lib/%.o,$(HIST_SRC))
+HIST_EXE := $(patsubst src/%.cc,bin/%,$(HIST_SRC))
 
-misc: $(DIRS) bin/cross_section_hist bin/cross_section_bh bin/hist_weights bin/select_old_weight_hists bin/draw_together
+all: $(DIRS) bin/inspect_bh bin/reweigh bin/plot bin/merge_parts $(HIST_EXE)
 
-tools parts:
-	@$(MAKE) -C $@
+misc: bin/hist_weights bin/cross_section_hist bin/cross_section_bh
 
-# directories rule
-lib bin:
+# directories #######################################################
+$(DIRS):
 	@mkdir -p $@
 
-# main object rules
-lib/cross_section_bh.o lib/cross_section_hist.o lib/test_rew_calc.o lib/reweigh.o lib/hist_weights.o lib/select_old_weight_hists.o lib/draw_together.o lib/plot.o lib/test_H3j.o lib/inspect_bh.o lib/merge_parts.o: lib/%.o: src/%.cc
+# tools #############################################################
+lib/timed_counter.o: lib/%.o: tools/%.cc tools/%.hh
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
+
+lib/csshists.o: lib/%.o: tools/%.cc tools/%.hh
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+
+# parts #############################################################
+lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o: lib/%.o: parts/%.cc parts/%.hh
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+
+lib/rew_calc.o: lib/%.o: parts/%.cc parts/%.hh parts/BHEvent.hh
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
+
+# main objects ######################################################
+lib/inspect_bh.o lib/reweigh.o lib/plot.o lib/merge_parts.o lib/hist_weights.o lib/cross_section_hist.o lib/cross_section_bh.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_fj_H3j.o: lib/%.o: src/%.cc
+$(HIST_OBJ): lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
-
-lib/hist_H2j.o lib/hist_H3j.o: lib/%.o: src/%.cc
-	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -DCONFDIR="\"`pwd -P`/config\"" \
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) \
+		-DCONFDIR="\"`pwd -P`/config\"" \
 		-c $(filter %.cc,$^) -o $@
 
-# executable rules
+# executables #######################################################
 bin/cross_section_bh bin/cross_section_hist bin/inspect_bh bin/merge_parts: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
@@ -55,58 +71,35 @@ bin/hist_weights: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_regex
 
-bin/plot bin/select_old_weight_hists: bin/%: lib/%.o
+bin/plot: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex
 
-bin/draw_together bin/test_H3j: bin/%: lib/%.o
-	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options
-
-bin/test_fj_H3j: bin/%: lib/%.o
-	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
-
-bin/hist_H2j bin/hist_H3j: bin/%: lib/%.o
+$(HIST_EXE): bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options -lboost_regex
 
-# EXE_OBJ dependencies
-lib/cross_section_bh.o: parts/include/BHEvent.hh
-lib/inspect_bh.o: parts/include/BHEvent.hh
-lib/test_rew_calc.o: parts/include/rew_calc.hh parts/include/BHEvent.hh
+# Objects' dependencies #############################################
+lib/inspect_bh.o: parts/BHEvent.hh
 
-lib/reweigh.o: tools/include/timed_counter.hh parts/include/rew_calc.hh parts/include/BHEvent.hh
+lib/reweigh.o: tools/timed_counter.hh parts/rew_calc.hh parts/BHEvent.hh
 
-lib/hist_H2j.o lib/hist_H3j.o lib/test_H3j.o lib/test_fj_H3j.o: tools/include/timed_counter.hh parts/include/BHEvent.hh parts/include/SJClusterAlg.hh
-lib/hist_H3j.o: parts/include/weight.hh
-lib/plot.o: tools/include/propmap.hh
+lib/hist_weights.o: tools/csshists.hh
 
-lib/hist_weights.o lib/hist_H2j.o lib/hist_H3j.o: tools/include/csshists.hh
+lib/cross_section_bh.o: parts/BHEvent.hh
 
-# EXE dependencies
-bin/cross_section_bh: parts/lib/BHEvent.o
-bin/inspect_bh: parts/lib/BHEvent.o
-bin/test_rew_calc: parts/lib/rew_calc.o parts/lib/BHEvent.o
+$(HIST_OBJ): tools/csshists.hh tools/timed_counter.hh parts/BHEvent.hh parts/SJClusterAlg.hh parts/weight.hh
 
-bin/reweigh: tools/lib/timed_counter.o parts/lib/rew_calc.o parts/lib/BHEvent.o
+# EXE dependencies ##################################################
+bin/inspect_bh: lib/BHEvent.o
 
-bin/hist_H2j bin/hist_H3j bin/test_H3j bin/test_fj_H3j: tools/lib/timed_counter.o parts/lib/BHEvent.o parts/lib/SJClusterAlg.o
-bin/hist_H2j bin/hist_H3j: parts/lib/weight.o
+bin/reweigh: lib/timed_counter.o lib/rew_calc.o lib/BHEvent.o
 
-bin/hist_weights bin/hist_H2j bin/hist_H3j: tools/lib/csshists.o
+bin/hist_weights: lib/csshists.o
 
-# tools rule
-tools/lib/%.o: tools/src/%.cc tools/include/%.hh
-	@$(MAKE) -C tools lib/$*.o
+bin/cross_section_bh: lib/BHEvent.o
 
-# parts rule
-parts/lib/%.o: parts/src/%.cc parts/include/%.hh
-	@$(MAKE) -C parts lib/$*.o
+$(HIST_EXE): lib/csshists.o lib/timed_counter.o lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o
 
 clean:
 	rm -rf bin/* lib/*
-
-deepclean: clean
-	@$(MAKE) -C tools clean
-	@$(MAKE) -C parts clean
