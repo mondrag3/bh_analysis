@@ -63,5 +63,5 @@ The code is written in C++11 and requires a C++ compiler which supports the -std
 ## Making changes
 
 ### Adding a new analysis
-* Make a copy of `src/hist_H3j` in the `src` directory. Make sure the new file's name also starts with `hist_` for `make` will pick it up automatically.
+* Make a copy of `src/hist_H3j` in the `src` directory. Make sure the new file's name also starts with `hist_` for `make` to pick it up automatically.
 * If you use GitHub, please submit a pull request, so that your code can be incorporated into the repository for the benefit of others and maintanance.
