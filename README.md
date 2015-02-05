@@ -46,8 +46,8 @@ Note: Numbers of entries in histograms are also combined.
 ---
 
 ## Compilation
-* To compile for the first time: `make tools parts all`
-* To recompile: `make`
+* Simply `make`
+* You can safely use the `-j` flag
 
 ### Requirements
 The code is written in C++11 and requires a C++ compiler which supports the -std=c++11 flag; -std=c++0x is insufficient.
@@ -63,7 +63,5 @@ The code is written in C++11 and requires a C++ compiler which supports the -std
 ## Making changes
 
 ### Adding a new analysis
-* Make a copy of `src/hist_H3j`, e.g. <br />
-  `cp src/hist_H3j src/hist_photon3j`
-* Add the new analysis to the `Makefile` by analogy with `src/hist_H2j` and `src/hist_H3j`
+* Make a copy of `src/hist_H3j` in the `src` directory. Make sure the new file's name also starts with `hist_` for `make` will pick it up automatically.
 * If you use GitHub, please submit a pull request, so that your code can be incorporated into the repository for the benefit of others and maintanance.
