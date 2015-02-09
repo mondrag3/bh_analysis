@@ -38,8 +38,8 @@ template<typename T> inline T sq(const T x) { return x*x; }
 
 // Histogram wrapper ************************************************
 class hist {
-public:
   unordered_map<const weight*,TH1*> h;
+public:
   hist(const string& name) {
     TH1* hist = css->mkhist(name);
     hist->Sumw2(false); // in ROOT6 true seems to be the default

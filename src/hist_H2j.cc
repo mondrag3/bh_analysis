@@ -52,18 +52,13 @@ public:
   }
 
   void Fill(Double_t x) noexcept {
-    for (auto& _h : h) {
+    for (auto& _h : h)
       _h.second->Fill(x,_h.first->is_float ? _h.first->w.f : _h.first->w.d);
-      if (!new_event) // decrement number of entries of still on the same event
-        _h.second->SetEntries(_h.second->GetEntries()-1);
-    }
   }
 
-  static bool new_event;
   static unique_ptr<const csshists> css;
   static unordered_map<const weight*,TDirectory*> dirs;
 };
-bool hist::new_event;
 unique_ptr<const csshists> hist::css;
 unordered_map<const weight*,TDirectory*> hist::dirs;
 
@@ -162,7 +157,7 @@ int main(int argc, char** argv)
       ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
-       ->default_value(CONFDIR"/H2j.css","H2j.css"),
+       ->default_value(CONFDIR"/H3j.css","H3j.css"),
        "CSS style file for histogram binning and formating")
       ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
        "process only this many events,\nnum or first:num")
@@ -296,7 +291,7 @@ int main(int argc, char** argv)
 
   // Make directories ***********************************************
   for (auto& w : weight::all) {
-    hist::dirs[w.get()] = fout->mkdir(w->name.c_str());
+    hist::dirs[w.get()] = fout->mkdir((w->name+"_Jet"+jet_alg).c_str());
   }
 
   fout->cd();
@@ -323,15 +318,26 @@ int main(int argc, char** argv)
 
     h_(jets_N_incl), h_(jets_N_excl), h_(jets_N_incl_pT50), h_(jets_N_excl_pT50),
 
-    h_(H_pT_2j), h_(H_pT_2j_excl), h_(H_y_2j), h_(H_y_2j_excl),
-    h_(jet2_mass), h_(jet2_pT), h_(jet2_y), h_(jet2_tau),
-    h_(H2j_mass), h_(H2j_pT), h_(H2j_pT_excl),
+    h_(H_pT_2j), h_(H_pT_2j_excl),
+    h_(H_pT_1j), h_(H_pT_1j_excl),
+    h_(H_pT_0j), h_(H_pT_0j_excl),
 
-    h_(H_pT_1j), h_(H_pT_1j_excl), h_(H_y_1j), h_(H_y_1j_excl),
-    h_(jet1_mass), h_(jet1_pT), h_(jet1_y), h_(jet1_tau),
+
+    h_(H_y_2j), h_(H_y_2j_excl),
+    h_(H_y_1j), h_(H_y_1j_excl),
+    h_(H_y_0j), h_(H_y_0j_excl),
+
+    h_(H2j_pT), h_(H2j_pT_excl),
     h_(H1j_pT), h_(H1j_pT_excl),
 
-    h_(H_pT_0j), h_(H_pT_0j_excl), h_(H_y_0j), h_(H_y_0j_excl),
+    h_(jet1_mass), h_(jet2_mass),
+    h_(jet1_pT),   h_(jet2_pT),
+    h_(jet1_y),    h_(jet2_y),
+    h_(jet1_tau),  h_(jet2_tau),
+
+    h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum),
+
+    h_(H2j_mass),
 
     h_(H_2j_deltaphi), h_(H_2j_deltaphi_excl),
     h_(H_2j_deltay), h_(H_2j_deltay_excl),
@@ -339,8 +345,6 @@ int main(int argc, char** argv)
     h_(2j_mass),
     h_(j_j_deltaphi), h_(j_j_deltaphi_excl), h_(j_j_deltaphi_VBF),
     h_(j_j_deltay),
-
-    h_(jets_HT), h_(jets_tau_max), h_(jets_tau_sum),
 
     h_(loose), h_(tight)
   ;
@@ -379,8 +383,7 @@ int main(int argc, char** argv)
     if (prev_id!=event.eid) {
       h_N->Fill(0.5);
       ++num_selected;
-      hist::new_event = true;
-    } else if (hist::new_event) hist::new_event = false;
+    }
     prev_id = event.eid;
 
     // Higgs 4-vector
