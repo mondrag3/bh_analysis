@@ -35,7 +35,7 @@ Note: Numbers of entries in histograms are not numbers of events, but numbers of
 * Output: Root file in the same format with merged histograms.
 * Usage example: `./bin/merge_parts NLO.root B.root RS.root I.root V.root`
 
-Note: Numbers of entries in histograms are also combined.
+Note: This program is meant to combine histograms from different types of ntuples, e.g. born with real. For combining the same type of ntuples together use `hadd` program that comes with ROOT. If you have multiple ntuples of the same type, combine same types together with `hadd` then merge the combined histograms with `merge_parts`.
 
 ### plot
 * Purpose: Plot histograms with scale variation and PDF uncertainty bands.
