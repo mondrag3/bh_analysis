@@ -126,8 +126,8 @@ int main(int argc, char** argv)
   vector<string> bh_files, sj_files, wt_files, weights;
   string output_file, css_file, jet_alg;
   double pt_cut, eta_cut;
-  pair<Long64_t,Long64_t> num_events;
-  bool quiet;
+  pair<Long64_t,Long64_t> num_ent {0,0};
+  bool counter_newline, quiet;
 
   bool sj_given = false, wt_given = false;
 
@@ -152,15 +152,17 @@ int main(int argc, char** argv)
        "weight branchs; if skipped:\n"
        "  without --wt: ntuple weight is used\n"
        "  with --wt: all weights from wt files")
-      ("jet-pt-cut", po::value<double>(&pt_cut)->default_value(30.),
+      ("jet-pt-cut", po::value<double>(&pt_cut)->default_value(30.,"30"),
        "jet pT cut in GeV")
       ("jet-eta-cut", po::value<double>(&eta_cut)->default_value(4.4,"4.4"),
        "jet eta cut in GeV")
       ("style,s", po::value<string>(&css_file)
        ->default_value(CONFDIR"/H3j.css","H3j.css"),
        "CSS style file for histogram binning and formating")
-      ("num-events,n", po::value<pair<Long64_t,Long64_t>>(&num_events),
-       "process only this many events,\nnum or first:num")
+      ("num-ent,n", po::value<pair<Long64_t,Long64_t>>(&num_ent),
+       "process only this many entries,\nnum or first:num")
+      ("counter-newline", po::bool_switch(&counter_newline),
+       "do not overwrite previous counter message")
       ("quiet,q", po::bool_switch(&quiet),
        "Do not print exception messages")
     ;
@@ -209,8 +211,8 @@ int main(int argc, char** argv)
   cout << endl;
 
   // Find number of events to process
-  if (num_events.second>0) {
-    const Long64_t need_events = num_events.first + num_events.second;
+  if (num_ent.second>0) {
+    const Long64_t need_events = num_ent.first + num_ent.second;
     if (need_events>tree->GetEntries()) {
       cerr << "Fewer entries in BH chain (" << tree->GetEntries()
          << ") then requested (" << need_events << ')' << endl;
@@ -227,14 +229,14 @@ int main(int argc, char** argv)
       exit(1);
     }
   } else {
-    num_events.second = tree->GetEntries();
-    if (sj_given) if (num_events.second!=sj_tree->GetEntries()) {
-      cerr << num_events.second << " entries in BH chain, but "
+    num_ent.second = tree->GetEntries();
+    if (sj_given) if (num_ent.second!=sj_tree->GetEntries()) {
+      cerr << num_ent.second << " entries in BH chain, but "
            << sj_tree->GetEntries() << " entries in SJ chain" << endl;
       exit(1);
     }
-    if (wt_given) if (num_events.second!=wt_tree->GetEntries()) {
-      cerr << num_events.second << " entries in BH chain, but "
+    if (wt_given) if (num_ent.second!=wt_tree->GetEntries()) {
+      cerr << num_ent.second << " entries in BH chain, but "
            << wt_tree->GetEntries() << " entries in weights chain" << endl;
       exit(1);
     }
@@ -343,13 +345,13 @@ int main(int argc, char** argv)
   // Reading events from the input TChain ***************************
   Long64_t num_selected = 0;
   Int_t prev_id = -1;
-  cout << "Reading " << num_events.second << " entries";
-  if (num_events.first>0) cout << " starting at " << num_events.first << endl;
+  cout << "Reading " << num_ent.second << " entries";
+  if (num_ent.first>0) cout << " starting at " << num_ent.first << endl;
   else cout << endl;
-  num_events.second += num_events.first;
-  timed_counter counter;
+  num_ent.second += num_ent.first;
+  timed_counter counter(counter_newline);
 
-  for (Long64_t ent = num_events.first; ent < num_events.second; ++ent) {
+  for (Long64_t ent = num_ent.first; ent < num_ent.second; ++ent) {
     counter(ent);
     tree->GetEntry(ent);
 
@@ -535,7 +537,7 @@ int main(int argc, char** argv)
 
   } // END of event loop
 
-  counter.prt(num_events.second);
+  counter.prt(num_ent.second);
   cout << endl;
   cout << "Successfully processed events: " << num_selected << endl;
 

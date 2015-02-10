@@ -18,7 +18,23 @@
 using namespace std;
 namespace po = boost::program_options;
 
-// using xml_doc  = rapidxml::xml_document<>;
+namespace std {
+  template<class A, class B>
+  istream& operator>> (istream& is, pair<A,B>& r) {
+    string str;
+    is >> str;
+    const size_t sep = str.find(':');
+    if (sep==string::npos) {
+      r.first = 0;
+      stringstream(str) >> r.second;
+    } else {
+      stringstream(str.substr(0,sep)) >> r.first;
+      stringstream(str.substr(sep+1)) >> r.second;
+    }
+    return is;
+  }
+}
+
 using xml_node = rapidxml::xml_node<>;
 using xml_attr = rapidxml::xml_attribute<char>;
 
@@ -49,7 +65,7 @@ int main(int argc, char** argv)
   // START OPTIONS **************************************************
   string BH_file, weights_file, pdf_set, xml_file;
   bool old_bh, counter_newline;
-  Long64_t num_events = 0;
+  pair<Long64_t,Long64_t> num_ent {0,0};
 
   try {
     // General Options ------------------------------------
@@ -64,8 +80,8 @@ int main(int argc, char** argv)
        "*output root file with new event weights")
       ("pdf", po::value<string>(&pdf_set)->default_value("CT10nlo"),
        "LHAPDF set name")
-      ("num-events,n", po::value<Long64_t>(&num_events),
-       "process only this many events. Zero means all.")
+      ("num-ent,n", po::value<pair<Long64_t,Long64_t>>(&num_ent),
+       "process only this many entries,\nnum or first:num")
       ("old-bh", po::bool_switch(&old_bh),
        "read an old BH tree (no part & alphas_power branches)")
       ("counter-newline", po::bool_switch(&counter_newline),
@@ -95,8 +111,14 @@ int main(int argc, char** argv)
   TTree *tin = (TTree*)fin->Get("t3");
 
   // Find number of events to process
-  if (num_events>0) num_events = min( num_events, tin->GetEntries() );
-  else num_events = tin->GetEntries();
+  if (num_ent.second>0) {
+    const Long64_t need_events = num_ent.first + num_ent.second;
+    if (need_events>tin->GetEntries()) {
+      cerr << "Fewer entries in BH ntuple (" << tin->GetEntries()
+         << ") then requested (" << need_events << ')' << endl;
+      exit(1);
+    }
+  } else num_ent.second = tin->GetEntries();
 
   // Set up BlackHat event
   event.SetTree(tin, BHEvent::reweighting, old_bh);
@@ -246,13 +268,14 @@ int main(int argc, char** argv)
   }
 
   // Reading events from the input ntuple ***************************
-  cout << "\nReading " << num_events << " events" << endl;
+  cout << "\nReading " << num_ent.second << " events" << endl;
   timed_counter counter(counter_newline);
+  num_ent.second += num_ent.first;
 
   cout << scientific;
   cout.precision(10);
 
-  for (Long64_t ent=0; ent<num_events; ++ent) {
+  for (Long64_t ent=num_ent.first; ent<num_ent.second; ++ent) {
     counter(ent);
     tin->GetEntry(ent);
 
@@ -265,7 +288,7 @@ int main(int argc, char** argv)
     for (auto w : weights) w->stitch();
     tree->Fill();
   }
-  counter.prt(num_events);
+  counter.prt(num_ent.second);
   cout << endl;
 
   fout->Write();
