@@ -210,22 +210,22 @@ int main(int argc, char** argv)
   }
   cout << endl;
 
-  // Find number of events to process
+  // Find number of entries to process
   if (num_ent.second>0) {
-    const Long64_t need_events = num_ent.first + num_ent.second;
-    if (need_events>tree->GetEntries()) {
+    const Long64_t need_ent = num_ent.first + num_ent.second;
+    if (need_ent>tree->GetEntries()) {
       cerr << "Fewer entries in BH chain (" << tree->GetEntries()
-         << ") then requested (" << need_events << ')' << endl;
+         << ") then requested (" << need_ent << ')' << endl;
       exit(1);
     }
-    if (sj_given) if (need_events>sj_tree->GetEntries()) {
+    if (sj_given) if (need_ent>sj_tree->GetEntries()) {
       cerr << "Fewer entries in SJ chain (" << sj_tree->GetEntries()
-         << ") then requested (" << need_events << ')' << endl;
+         << ") then requested (" << need_ent << ')' << endl;
       exit(1);
     }
-    if (wt_given) if (need_events>wt_tree->GetEntries()) {
+    if (wt_given) if (need_ent>wt_tree->GetEntries()) {
       cerr << "Fewer entries in weights chain (" << wt_tree->GetEntries()
-         << ") then requested (" << need_events << ')' << endl;
+         << ") then requested (" << need_ent << ')' << endl;
       exit(1);
     }
   } else {
@@ -351,7 +351,7 @@ int main(int argc, char** argv)
     h_(loose), h_(tight)
   ;
 
-  // Reading events from the input TChain ***************************
+  // Reading entries from the input TChain ***************************
   Long64_t num_selected = 0;
   Int_t prev_id = -1;
   cout << "Reading " << num_ent.second << " entries";
@@ -365,7 +365,7 @@ int main(int argc, char** argv)
     tree->GetEntry(ent);
 
     if (event.nparticle>BHMAXNP) {
-      cerr << "More particles in the event then BHMAXNP" << endl
+      cerr << "More particles in the entry then BHMAXNP" << endl
            << "Increase array length to " << event.nparticle << endl;
       exit(1);
     }
@@ -550,7 +550,7 @@ int main(int argc, char** argv)
 
   counter.prt(num_ent.second);
   cout << endl;
-  cout << "Successfully processed events: " << num_selected << endl;
+  cout << "Selected events: " << num_selected << endl;
 
   // Close files
   fout->Write();

@@ -110,12 +110,12 @@ int main(int argc, char** argv)
 
   TTree *tin = (TTree*)fin->Get("t3");
 
-  // Find number of events to process
+  // Find number of entries to process
   if (num_ent.second>0) {
-    const Long64_t need_events = num_ent.first + num_ent.second;
-    if (need_events>tin->GetEntries()) {
+    const Long64_t need_ent = num_ent.first + num_ent.second;
+    if (need_ent>tin->GetEntries()) {
       cerr << "Fewer entries in BH ntuple (" << tin->GetEntries()
-         << ") then requested (" << need_events << ')' << endl;
+         << ") then requested (" << need_ent << ')' << endl;
       exit(1);
     }
   } else num_ent.second = tin->GetEntries();
@@ -267,8 +267,8 @@ int main(int argc, char** argv)
     ) );
   }
 
-  // Reading events from the input ntuple ***************************
-  cout << "\nReading " << num_ent.second << " events" << endl;
+  // Reading entries from the input ntuple ***************************
+  cout << "\nReading " << num_ent.second << " entries" << endl;
   timed_counter counter(counter_newline);
   num_ent.second += num_ent.first;
 
