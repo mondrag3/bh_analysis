@@ -1,0 +1,21 @@
+<bh_format alphas="" />
+
+<energies>
+  <Ht_Higgs name="Ht2" frac="0.5"  />
+  <fixed    name="mH"  val="125" />
+</energies>
+
+<scales>
+  <fac name="Ht2" energy="Ht2" />
+  <fac name="mH"  energy="mH" />
+
+  <ren name="Ht2" energy="Ht2" />
+  <ren name="Ht2_as2-mH" energy="Ht2" alphas="two_mH" />
+  <ren name="mH"  energy="mH" />
+</scales>
+
+<weights>
+  <weight fac="Ht2" ren="Ht2" />
+  <weight fac="Ht2" ren="Ht2_as2-mH" />
+  <weight fac="mH" ren="mH" />
+</weights>

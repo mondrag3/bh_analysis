@@ -19,7 +19,7 @@ void usePDFset(const std::string& setname);
 class mu_fcn {
 public:
   virtual double mu() const noexcept =0;
-  virtual ~mu_fcn() { }
+  virtual ~mu_fcn() noexcept { }
 };
 
 class mu_fixed: public mu_fcn {
@@ -27,7 +27,7 @@ class mu_fixed: public mu_fcn {
 public:
   mu_fixed(double mu) noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_fixed() { }
+  virtual ~mu_fixed() noexcept { }
 };
 
 class mu_fHt: public mu_fcn {
@@ -35,7 +35,7 @@ class mu_fHt: public mu_fcn {
 public:
   mu_fHt(double fHt) noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_fHt() { }
+  virtual ~mu_fHt() noexcept { }
 };
 
 class mu_fHt_Higgs: public mu_fcn {
@@ -43,21 +43,21 @@ class mu_fHt_Higgs: public mu_fcn {
 public:
   mu_fHt_Higgs(double fHt) noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_fHt_Higgs() { }
+  virtual ~mu_fHt_Higgs() noexcept { }
 };
 
 class mu_fac_default: public mu_fcn {
 public:
   mu_fac_default() noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_fac_default() { }
+  virtual ~mu_fac_default() noexcept { }
 };
 
 class mu_ren_default: public mu_fcn {
 public:
   mu_ren_default() noexcept;
   virtual double mu() const noexcept;
-  virtual ~mu_ren_default() { }
+  virtual ~mu_ren_default() noexcept { }
 };
 
 //-----------------------------------------------
@@ -66,18 +66,17 @@ public:
 
 class reweighter;
 
-class fac_calc {
-protected:
-  const mu_fcn* mu_f;
+struct fac_calc {
+  fac_calc(const mu_fcn* mu_f) noexcept;
+  void calc() const noexcept;
+  ~fac_calc();
+
   bool pdf_unc;
   bool defaultPDF;
 
+private:
+  const mu_fcn* mu_f;
   mutable double f[3][2][5], m[9], lf, si[3];
-
-public:
-  fac_calc(const mu_fcn* mu_f, bool pdf_unc=false, bool defaultPDF=false) noexcept;
-  void calc() const noexcept;
-  ~fac_calc();
 
 friend class reweighter;
 };
@@ -86,21 +85,21 @@ friend class reweighter;
 // Renormalization ------------------------------
 //-----------------------------------------------
 
-enum class alphas_fcn: char { all_mu, two_mH };
+enum class alphas_fcn: char { all_ren, two_mH };
 
-class ren_calc {
-protected:
-  const mu_fcn* mu_r;
-  bool defaultPDF;
-
-  mutable double ar, lr, m0;
-
-public:
-  ren_calc(const mu_fcn* mu_r, bool defaultPDF=false) noexcept;
+struct ren_calc {
+  ren_calc(const mu_fcn* mu_r) noexcept;
   void calc() const noexcept;
   ~ren_calc();
 
+  alphas_fcn new_alphas;
+  bool defaultPDF;
+
   static alphas_fcn bh_alphas;
+
+private:
+  const mu_fcn* mu_r;
+  mutable double ar, lr, m0;
 
 friend class reweighter;
 };

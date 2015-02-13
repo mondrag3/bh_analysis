@@ -228,8 +228,10 @@ int main(int argc, char** argv)
       mu[name] = new mu_fac_default();
     else if (!strcmp(tag_name,"ren_default"))
       mu[name] = new mu_ren_default();
-    else
+    else {
       cerr << "Warning: unrecognized energy definition: " << tag_name << endl;
+      exit(1);
+    }
   }
 
   node_loop(scales_node,"fac") {
@@ -239,10 +241,19 @@ int main(int argc, char** argv)
            << " is replaced" << endl;
       delete fac[name];
     }
-    const xml_attr* pdfunc = node->first_attribute("pdfunc");
-    fac[name] = new fac_calc(
-      mu[get_attr(node,"energy")], pdfunc && !strcmp(pdfunc->value(),"true")
-    );
+
+    fac_calc *_fac = new fac_calc(mu[get_attr(node,"energy")]);
+
+    if (const xml_attr* pdfunc = node->first_attribute("pdfunc")) {
+      if (!strcmp(pdfunc->value(),"true"))
+        _fac->pdf_unc = true;
+    }
+    if (const xml_attr* nopdf = node->first_attribute("nopdf")) {
+      if (!strcmp(nopdf->value(),"true"))
+        _fac->defaultPDF = true;
+    }
+
+    fac[name] = _fac;
   }
 
   node_loop(scales_node,"ren") {
@@ -252,7 +263,19 @@ int main(int argc, char** argv)
            << " is replaced" << endl;
       delete ren[name];
     }
-    ren[name] = new ren_calc( mu[get_attr(node,"energy")] );
+
+    ren_calc *_ren = new ren_calc( mu[get_attr(node,"energy")] );
+
+    if (const xml_attr* alphas = node->first_attribute("alphas")) {
+      if (!strcmp(alphas->value(),"two_mH"))
+        _ren->new_alphas = alphas_fcn::two_mH;
+    }
+    if (const xml_attr* nopdf = node->first_attribute("nopdf")) {
+      if (!strcmp(nopdf->value(),"true"))
+        _ren->defaultPDF = true;
+    }
+
+    ren[name] = _ren;
   }
 
   node_loop(weights_node,"weight") {

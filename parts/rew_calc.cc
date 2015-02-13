@@ -76,19 +76,21 @@ double mu_ren_default::mu() const noexcept { return event.ren_scale; }
 
 // Factorization --------------------------------
 
-fac_calc::fac_calc(const mu_fcn* mu_f, bool pdf_unc, bool defaultPDF) noexcept
-: mu_f(mu_f), pdf_unc(pdf_unc), defaultPDF(defaultPDF) { }
+fac_calc::fac_calc(const mu_fcn* mu_f) noexcept
+: mu_f(mu_f), pdf_unc(false), defaultPDF(false) { }
 
 fac_calc::~fac_calc() { }
 
 // Renormalization ------------------------------
 
-ren_calc::ren_calc(const mu_fcn* mu_r, bool defaultPDF) noexcept
-: mu_r(mu_r), defaultPDF(defaultPDF), ar(1.) { }
+ren_calc::ren_calc(const mu_fcn* mu_r) noexcept
+: mu_r(mu_r), new_alphas(alphas_fcn::all_ren), defaultPDF(false),
+  ar(1.)
+{ }
 
 ren_calc::~ren_calc() { }
 
-alphas_fcn ren_calc::bh_alphas = alphas_fcn::all_mu;
+alphas_fcn ren_calc::bh_alphas = alphas_fcn::all_ren;
 
 // Reweighter: combines fac and ren -------------
 
@@ -264,27 +266,21 @@ void ren_calc::calc() const noexcept {
 
   const double mu = mu_r->mu();
 
-  // cout << endl;
-  // test(mu_r->str)
-  // test(ren_scale)
-  // test(mu)
-
-  // test(pdf->alphasQ(mu))
-  // test(alphas)
-  // test(int(n))
-
   // Calculate α_s change from renormalization
   if (!defaultPDF) {
     const double to_alphas = pdf->alphasQ(mu);
-    switch (bh_alphas) {
-      case alphas_fcn::all_mu:
-        ar = pow( to_alphas/alphas, n ); break;
-      case alphas_fcn::two_mH:
-        ar = sq(to_alphas/alphas_mH)*pow(to_alphas/alphas, n-2); break;
+    if (new_alphas == alphas_fcn::two_mH) {
+      ar = pow(to_alphas/alphas, n-2);
+      if (bh_alphas != alphas_fcn::two_mH) {
+        ar *= sq(alphas_mH/alphas);
+      }
+    } else {
+      ar = pow(to_alphas/alphas, n);
+      if (bh_alphas == alphas_fcn::two_mH) {
+        ar *= sq(alphas/alphas_mH);
+      }
     }
   }
-
-  // test(ar)
 
   if (part=='V' || part=='I') {
     lr = 2.*log( mu / ren_scale ); // Calculate lr, same as l in Eq (30)
