@@ -77,15 +77,15 @@ double mu_ren_default::mu() const noexcept { return event.ren_scale; }
 // Factorization --------------------------------
 
 fac_calc::fac_calc(const mu_fcn* mu_f) noexcept
-: mu_f(mu_f), pdf_unc(false), defaultPDF(false) { }
+: pdf_unc(false), defaultPDF(false), mu_f(mu_f) { }
 
 fac_calc::~fac_calc() { }
 
 // Renormalization ------------------------------
 
 ren_calc::ren_calc(const mu_fcn* mu_r) noexcept
-: mu_r(mu_r), new_alphas(alphas_fcn::all_ren), defaultPDF(false),
-  ar(1.)
+: new_alphas(alphas_fcn::all_ren), defaultPDF(false),
+  mu_r(mu_r), ar(1.)
 { }
 
 ren_calc::~ren_calc() { }
