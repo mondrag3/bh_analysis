@@ -2,8 +2,8 @@
 // Developer: Ivan Pogrebnyak
 //---------------------------
 
-#ifndef propmap_h
-#define propmap_h
+#ifndef propmap_hh
+#define propmap_hh
 
 #include <string>
 #include <set>
@@ -47,14 +47,15 @@ public:
     return new prop<T>(*this);
   }
   virtual size_t hash() const {
-    return std::hash<T>()(x);
+    static std::hash<T> __hash;
+    return __hash(x);
   }
   virtual std::string str() const {
     std::stringstream ss;
     ss << x;
     return ss.str();
   }
-
+  
   friend std::istream& operator>> (std::istream  &in, prop<T> &p) {
     in >> p.x;
     return in;
@@ -119,6 +120,9 @@ public:
     out << p->str();
     return out;
   }
+  virtual size_t hash() const {
+    return ptr->hash();
+  }
 };
 std::unordered_map<const prop_base*,size_t> prop_ptr::refcount;
 
@@ -144,15 +148,67 @@ namespace std {
 template <typename T, size_t N>
 class propmap {
 public:
-  typedef std::array<prop_ptr,N> Key;
-  typedef std::set<prop_ptr>     Set;
+  typedef std::array<prop_ptr,N> key_t;
+  typedef std::vector<prop_ptr>  vec_t;
 
 private:
-  std::array<Set,N> _props;
-  std::unordered_map<Key,T> _map;
+  std::array<vec_t,N> _props;
+  std::unordered_map<key_t,T> _map;
 
 public:
-  void insert(const Key& key, const T& x) {
+  void insert(const key_t& key, const T& x) {
+    for (size_t i=0;i<N;++i) {
+      if (key[i].ptr) {
+        auto& vec = _props[i];
+
+        bool exists = false;
+        for (auto& x : vec) {
+          if (x->eq(key[i].ptr)) {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) vec.push_back(key[i]->clone());
+        
+      } else throw std::runtime_error("In propmap: NULL property");
+    }
+    _map[key] = x;
+  }
+
+  bool get(const key_t& key, T& x) noexcept {
+    if ( _map.count(key)==0 ) {
+      return false;
+    } else {
+      x = _map[key];
+      return true;
+    }
+  }
+
+  T& get(const key_t& key) {
+    try { return _map.at(key);
+    } catch (std::out_of_range& e) { throw std::out_of_range(
+      std::string("In ") + __PRETTY_FUNCTION__ + ": " + e.what()
+    ); }
+  }
+
+  template<size_t i> inline const vec_t& pvec() noexcept {
+    return std::get<i>(_props);
+  }
+
+};
+
+template <typename T, size_t N>
+class sorted_propmap {
+public:
+  typedef std::array<prop_ptr,N> key_t;
+  typedef std::set<prop_ptr>     set_t;
+
+private:
+  std::array<set_t,N> _props;
+  std::unordered_map<key_t,T> _map;
+
+public:
+  void insert(const key_t& key, const T& x) {
     for (size_t i=0;i<N;++i) {
       if (key[i].ptr) {
         auto& set = _props[i];
@@ -162,7 +218,7 @@ public:
     _map[key] = x;
   }
 
-  bool get(const Key& key, T& x) noexcept {
+  bool get(const key_t& key, T& x) noexcept {
     if ( _map.count(key)==0 ) {
       return false;
     } else {
@@ -171,14 +227,14 @@ public:
     }
   }
 
-  T& get(const Key& key) {
+  T& get(const key_t& key) {
     try { return _map.at(key);
     } catch (std::out_of_range& e) { throw std::out_of_range(
       std::string("In ") + __PRETTY_FUNCTION__ + ": " + e.what()
     ); }
   }
 
-  template<size_t i> inline const Set& pset() noexcept {
+  template<size_t i> inline const set_t& pset() noexcept {
     return std::get<i>(_props);
   }
 

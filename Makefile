@@ -21,7 +21,7 @@ HIST_SRC := $(filter-out src/hist_weights.cc,$(wildcard src/hist_*.cc))
 HIST_OBJ := $(patsubst src/%.cc,lib/%.o,$(HIST_SRC))
 HIST_EXE := $(patsubst src/%.cc,bin/%,$(HIST_SRC))
 
-all: $(DIRS) bin/inspect_bh bin/reweigh bin/plot bin/merge_parts $(HIST_EXE)
+all: $(DIRS) bin/inspect_bh bin/reweigh bin/plot bin/merge_parts bin/overlay $(HIST_EXE)
 
 misc: bin/hist_weights bin/cross_section_hist bin/cross_section_bh
 
@@ -38,6 +38,10 @@ lib/csshists.o: lib/%.o: tools/%.cc tools/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
+lib/hist_range.o: lib/%.o: tools/%.cc tools/%.hh
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+
 # parts #############################################################
 lib/BHEvent.o lib/SJClusterAlg.o lib/weight.o: lib/%.o: parts/%.cc parts/%.hh
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m"
@@ -48,7 +52,7 @@ lib/rew_calc.o: lib/%.o: parts/%.cc parts/%.hh parts/BHEvent.hh
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # main objects ######################################################
-lib/inspect_bh.o lib/reweigh.o lib/plot.o lib/merge_parts.o lib/hist_weights.o lib/cross_section_hist.o lib/cross_section_bh.o: lib/%.o: src/%.cc
+lib/inspect_bh.o lib/reweigh.o lib/plot.o lib/merge_parts.o lib/overlay.o lib/hist_weights.o lib/cross_section_hist.o lib/cross_section_bh.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m"
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -75,6 +79,10 @@ bin/plot: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options -lboost_regex
 
+bin/overlay: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
+	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
+
 $(HIST_EXE): bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m"
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options -lboost_regex
@@ -86,6 +94,8 @@ lib/reweigh.o: tools/timed_counter.hh parts/rew_calc.hh parts/BHEvent.hh
 
 lib/hist_weights.o: tools/csshists.hh
 
+lib/overlay.o: tools/propmap.hh tools/hist_range.hh
+
 lib/cross_section_bh.o: parts/BHEvent.hh
 
 $(HIST_OBJ): tools/csshists.hh tools/timed_counter.hh parts/BHEvent.hh parts/SJClusterAlg.hh parts/weight.hh
@@ -96,6 +106,8 @@ bin/inspect_bh: lib/BHEvent.o
 bin/reweigh: lib/timed_counter.o lib/rew_calc.o lib/BHEvent.o
 
 bin/hist_weights: lib/csshists.o
+
+bin/overlay: lib/hist_range.o
 
 bin/cross_section_bh: lib/BHEvent.o
 
