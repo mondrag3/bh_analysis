@@ -16,8 +16,7 @@
 #include <TStyle.h>
 #include <TLegend.h>
 #include <TLine.h>
-// #include <TText.h>
-// #include <TLatex.h>
+#include <TText.h>
 #include <TAxis.h>
 
 #include "propmap.hh"
@@ -27,44 +26,6 @@ using namespace std;
 
 #define test(var) \
 cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
-
-unordered_map<prop_ptr,string> rm_eq_fields(const vector<prop_ptr>& ss, const char* sep) {
-  const size_t n = ss.size();
-  vector<list<string>> tokenized(ss.size());
-  multiset<string> tracker;
-  for (size_t i=0; i<n; ++i) {
-    string str = ss[i]->str();
-    char cstr[str.size()];
-    strcpy(cstr,str.c_str());
-    char * pch;
-    pch = strtok (cstr,sep);
-    while (pch) {
-      tokenized[i].emplace_back(pch);
-      tracker.emplace(pch);
-      //cout << pch << endl;
-      pch = strtok(NULL,sep);
-    }
-  }
-  for (auto& tok : tracker) {
-    for (auto& tl : tokenized) {
-      if (tracker.count(tok)==n) tl.remove(tok);
-    }
-  }
-  //cout << endl;
-
-  unordered_map<prop_ptr,string> _map;
-  for (size_t i=0; i<n; ++i) {
-    string& _s = _map[ss[i]];
-    bool first = true;
-    for (auto& s : tokenized[i]) {
-      _s += ( first ? s : '_'+s);
-      if (first) first = false;
-    }
-    //cout << _s << endl;
-  }
-
-  return _map;
-};
 
 template<class T>
 inline T* get(TDirectory* dir, const char* name) {
@@ -83,8 +44,6 @@ string sigma_prt(Double_t sigma, unsigned prec) {
      << noshowpoint << " pb";
   return ss.str();
 }
-
-enum class var : char { other, N, pT, mass, y, phi, HT, tau };
 
 // ******************************************************************
 typedef propmap<TH1D*,2> hmap_t;
@@ -148,8 +107,56 @@ int main(int argc, char **argv)
     }
   }
 
-  // remove fields identical for all
-  unordered_map<prop_ptr,string> lmap = rm_eq_fields(hmap.pvec<0>(),"_");
+  const vector<prop_ptr> &pdir  = hmap.pvec<0>();
+  const vector<prop_ptr> &phist = hmap.pvec<1>();
+  const size_t ndir = pdir.size();
+
+  // remove fields labels identical for all
+  // ****************************************************************
+  unordered_map<prop_ptr,string> lmap;
+  string lcommon;
+  {
+    const char *sep = "_";
+    vector<list<string>> tokenized(pdir.size());
+    multiset<string> tracker;
+    set<string> repeated;
+    for (size_t i=0; i<ndir; ++i) {
+      string str = pdir[i]->str();
+      char cstr[str.size()];
+      strcpy(cstr,str.c_str());
+      char * pch;
+      pch = strtok (cstr,sep);
+      while (pch) {
+        tokenized[i].emplace_back(pch);
+        tracker.emplace(pch);
+        pch = strtok(NULL,sep);
+      }
+    }
+    for (auto& tok : tracker) {
+      for (auto& tl : tokenized) {
+        if (tracker.count(tok)==ndir) {
+          tl.remove(tok);
+          repeated.insert(tok);
+        }
+      }
+    }
+    if (repeated.size()) {
+      auto it = repeated.begin();
+      lcommon += *(it++);
+      for (auto end=repeated.end();it!=end;++it)
+        (lcommon += '_') += *it;
+    }
+
+    for (size_t i=0; i<ndir; ++i) {
+      string &_s = lmap[pdir[i]];
+      bool first = true;
+      for (auto& s : tokenized[i]) {
+        if (first) first = false;
+        else _s += '_';
+        _s += s;
+      }
+    }
+  }
 
   // Draw ***********************************************************
   gStyle->SetOptStat(0);
@@ -160,12 +167,12 @@ int main(int argc, char **argv)
   TCanvas canv;
   canv.SaveAs((fout+'[').c_str());
 
-  for (const auto& hname : hmap.pvec<1>()) {
+  for (const auto& hname : phist) {
     hkey[1] = hname;
 
     const string h_name = hname->str();
 
-    TLegend leg(0.72,0.92-0.0325*hmap.pvec<0>().size(),0.95,0.92);
+    TLegend leg(0.72,0.92-0.0325*ndir,0.95,0.92);
     TLegend sig(leg.GetX1(),2*leg.GetY1()-leg.GetY2(),
                 leg.GetX2(),leg.GetY1());
     leg.SetFillColorAlpha(0,0.65);
@@ -184,7 +191,7 @@ int main(int argc, char **argv)
 
     int i = 0;
     TH1D *first = nullptr;
-    for (const auto& hdir : hmap.pvec<0>()) {
+    for (const auto& hdir : pdir) {
       hkey[0] = hdir;
 
       TH1D *h;
@@ -226,67 +233,48 @@ int main(int argc, char **argv)
 
     y_range(first)->SetTitle(hname->str().c_str());
 
-    if (first->GetMinimum()<0.)
+    if (first->GetMinimum()<0. && 1.<first->GetMaximum())
       zero.DrawLine(first->GetBinLowEdge(1),0,
                     first->GetBinLowEdge(first->GetNbinsX()+1),0);
-
-    // Variable type
-    var h_var = var::other;
-
-    if (h_name.find("_N") != string::npos) {
-      h_var = var::N;
-    } else if (h_name.find("_pT") != string::npos) {
-      h_var = var::pT;
-    } else if (h_name.find("_mass") != string::npos) {
-      h_var = var::mass;
-    } else if ( (h_name.find("_deltay") != string::npos) ||
-                (h_name.find("_y") != string::npos) ) {
-      h_var = var::y;
-    } else if ( (h_name.find("_deltaphi") != string::npos) ||
-                (h_name.find("_phi") != string::npos) ) {
-      h_var = var::phi;
-    } else if (h_name.find("_HT") != string::npos) {
-      h_var = var::HT;
-    } else if (h_name.find("_tau") != string::npos) {
-      h_var = var::tau;
-    }
 
     TAxis *xa = first->GetXaxis();
     TAxis *ya = first->GetYaxis();
     ya->SetTitleOffset(1.3);
-    switch (h_var) {
-      case var::pT:
-        xa->SetTitle("pT, GeV");
-        ya->SetTitle("d#sigma/dp_{T}, pb/GeV");
-        break;
-      case var::HT:
-        xa->SetTitle("HT, GeV");
-        ya->SetTitle("d#sigma/dH_{T}, pb/GeV");
-        break;
-      case var::mass:
-        xa->SetTitle("m, GeV");
-        ya->SetTitle("d#sigma/dm, pb/GeV");
-        break;
-      case var::y:
-        xa->SetTitle("y");
-        ya->SetTitle("d#sigma/dy, pb");
-        break;
-      case var::phi:
-        xa->SetTitle("#phi, rad");
-        ya->SetTitle("d#sigma/d#phi, pb/rad");
-        break;
-      case var::tau:
-        xa->SetTitle("#tau, GeV");
-        ya->SetTitle("d#sigma/d#tau, pb/GeV");
-        break;
-      default:
-        ya->SetTitle("#sigma, pb");
-    }
+
+    if (h_name.find("_pT") != string::npos) {
+      xa->SetTitle("pT, GeV");
+      ya->SetTitle("d#sigma/dp_{T}, pb/GeV");
+    } else if (h_name.find("_mass") != string::npos) {
+      xa->SetTitle("m, GeV");
+      ya->SetTitle("d#sigma/dm, pb/GeV");
+    } else if ( (h_name.find("_deltay") != string::npos) ||
+                (h_name.find("_y") != string::npos) ) {
+      xa->SetTitle("y");
+      ya->SetTitle("d#sigma/dy, pb");
+    } else if ( (h_name.find("_deltaphi") != string::npos) ||
+                (h_name.find("_phi") != string::npos) ) {
+      xa->SetTitle("#phi, rad");
+      ya->SetTitle("d#sigma/d#phi, pb/rad");
+    } else if (h_name.find("_HT") != string::npos) {
+      xa->SetTitle("H_{T}, GeV");
+      ya->SetTitle("d#sigma/dH_{T}, pb/GeV");
+    } else if (h_name.find("_tau") != string::npos) {
+      xa->SetTitle("#tau, GeV");
+      ya->SetTitle("d#sigma/d#tau, pb/GeV");
+    } else ya->SetTitle("#sigma, pb");
 
     top_corner_cover.Draw();
     right_corner_cover.Draw();
     leg.Draw();
     sig.Draw();
+
+    TText common_lbl(0.73,0.95,lcommon.c_str());
+    common_lbl.SetNDC();
+    common_lbl.SetTextAlign(13);
+    common_lbl.SetTextFont(42);
+    common_lbl.SetTextSize(0.025);
+    common_lbl.Draw();
+
     canv.SaveAs(fout.c_str());
   }
 

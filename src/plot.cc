@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <cmath>
+#include <memory>
 
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
@@ -17,6 +18,7 @@
 #include <TLegend.h>
 #include <TText.h>
 #include <TLatex.h>
+#include <TLine.h>
 #include <TAxis.h>
 #include <TGraphAsymmErrors.h>
 
@@ -77,6 +79,7 @@ int main(int argc, char** argv)
   string fout_name;
   float of_lim;
   bool of_lim_set = false;
+  unsigned sigma_prec;
 
   try {
     // General Options ------------------------------------
@@ -89,6 +92,8 @@ int main(int argc, char** argv)
      "output pdf plots")
     ("title,t", po::value<string>(&title),
      "string appended to each title")
+    ("sigma-prec", po::value<unsigned>(&sigma_prec)->default_value(3),
+     "number of significant digits in cross section")
     ("overflow", po::value<float>(&of_lim),
      "print under- and overflow messages on histograms above the limit")
     ;
@@ -209,6 +214,9 @@ int main(int argc, char** argv)
       cent  [i]    = h_cent->GetAt(i+1);
     }
 
+    bool draw_scale_unc = false;
+    bool draw_pdf_unc = false;
+
     // Loop over other directories
     for (size_t di=1; di<ndirs; ++di) {
       TDirectory * const dir = dirs[di];
@@ -216,14 +224,17 @@ int main(int argc, char** argv)
       TH1D * const h = get<TH1D>(dir,h_name.c_str());
 
       if (dir_name.find("_up_") != string::npos) { // pdf up
+        draw_pdf_unc = true;
         for (size_t i=0;i<nbins;++i)
           pdf_hi[i] = h->GetAt(i+1) - cent[i];
 
       } else if (dir_name.find("_down_") != string::npos) { // pdf down
+        draw_pdf_unc = true;
         for (size_t i=0;i<nbins;++i)
           pdf_lo[i] = cent[i] - h->GetAt(i+1);
 
       } else { // scale variation
+        if(!draw_scale_unc) draw_scale_unc = true;
         for (size_t i=0;i<nbins;++i) {
           Double_t x = h->GetAt(i+1) - cent[i];
           if (x>0.) {
@@ -247,20 +258,32 @@ int main(int argc, char** argv)
     }
 
     // Draw *********************************************************
+    TLine zero;
+    zero.SetLineStyle(7);
 
-    TGraphAsymmErrors g_scales (nbins,bins_edge.data(),cent.data(),
-                                      0,bins_wdth.data(),
-                                      scales_lo.data(),scales_hi.data()),
-                      g_pdf_unc(nbins,bins_edge.data(),cent.data(),
-                                      0,bins_wdth.data(),
-                                      pdf_lo.data(),pdf_hi.data());
+    TGraphAsymmErrors g_scales(nbins,bins_edge.data(),cent.data(),
+                                     0,bins_wdth.data(),
+                                     scales_lo.data(),scales_hi.data()),
+                      g_pdf   (nbins,bins_edge.data(),cent.data(),
+                                     0,bins_wdth.data(),
+                                     pdf_lo.data(),pdf_hi.data());
 
-    g_scales.GetXaxis()
-      ->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
-    g_scales.SetTitle( title.size() ? (h_name+' '+title).c_str()
-                                    : h_name.c_str() );
     TAxis *xa = g_scales.GetXaxis();
     TAxis *ya = g_scales.GetYaxis();
+
+    xa->SetRangeUser(bins_edge[0],bins_edge.back()+bins_wdth.back());
+    g_scales.SetTitle( title.size() ? (h_name+' '+title).c_str()
+                                    : h_name.c_str() );
+
+/*
+    if (draw_pdf_unc) {
+      ya->SetRangeUser(
+        min(g_scales.GetMinimum(),g_pdf.GetMinimum())*0.95,
+        max(g_scales.GetMaximum(),g_pdf.GetMaximum())*1.1
+      );
+    }
+*/
+
     ya->SetTitleOffset(1.3);
     switch (h_var) {
       case var::pT:
@@ -299,58 +322,66 @@ int main(int argc, char** argv)
     // g_scales .SetMarkerStyle(21);
     g_scales.Draw("a2");
 
-    g_pdf_unc.SetFillColorAlpha(4,0.5);
-    // g_pdf_unc.SetLineColor(10);
-    // g_pdf_unc.SetFillStyle(3005);
-    g_pdf_unc.SetLineWidth(0);
-    g_pdf_unc.Draw("2");
+    if (draw_pdf_unc) {
+      g_pdf.SetFillColorAlpha(4,0.5);
+      // g_pdf.SetLineColor(10);
+      // g_pdf.SetFillStyle(3005);
+      g_pdf.SetLineWidth(0);
+      g_pdf.Draw("2");
+    }
 
     h_cent->Sumw2(false);
     h_cent->SetLineWidth(2);
     h_cent->SetLineColor(1);
     h_cent->Draw("same");
 
-    TLegend leg(0.72,0.75,0.89,0.89);
+    TLegend leg( draw_pdf_unc ? 0.69 : 0.72, 0.835,0.91,0.89);
+    leg.SetNColumns(2);
     leg.SetBorderSize(0);
     leg.SetFillStyle(0);
-    leg.AddEntry(&g_scales, "Scale unc");
-    leg.AddEntry(&g_pdf_unc,"PDF unc");
+    leg.SetMargin(0.4);
+    leg.SetColumnSeparation(-0.1);
+    if (draw_scale_unc) leg.AddEntry(&g_scales,"Scale");
+    if (draw_pdf_unc)   leg.AddEntry(&g_pdf,   "PDF");
     leg.Draw();
 
-    TLatex cs_lbl(0.73,0.74, sigma_prt(sigma,3).c_str());
+    static constexpr Double_t lbl_y2 = 0.82;
+
+    TLatex cs_lbl(0.73,lbl_y2, sigma_prt(sigma,sigma_prec).c_str());
     cs_lbl.SetNDC();
     cs_lbl.SetTextAlign(13);
     cs_lbl.SetTextFont(42);
     cs_lbl.SetTextSize(0.035);
     cs_lbl.Draw();
 
-    TLatex N_lbl(0.73,0.70, Form("Ent: %ld",lround(h_cent->GetEntries())));
+    TLatex N_lbl(0.73,lbl_y2-0.04, Form("Ent: %ld",lround(h_cent->GetEntries())));
     N_lbl.SetNDC();
     N_lbl.SetTextAlign(13);
     N_lbl.SetTextFont(42);
     N_lbl.SetTextSize(0.035);
     N_lbl.Draw();
 
-    TText jet_alg_lbl(0.73,0.66,("Jet alg: "+combine(jet_alg)).c_str());
+    TText jet_alg_lbl(0.73,lbl_y2-0.08,("Jet alg: "+combine(jet_alg)).c_str());
     jet_alg_lbl.SetNDC();
     jet_alg_lbl.SetTextAlign(13);
     jet_alg_lbl.SetTextFont(42);
     jet_alg_lbl.SetTextSize(0.035);
     jet_alg_lbl.Draw();
 
-    TLatex pdf_lbl(0.73,0.62, ("PDF: "+combine(pdf_name)).c_str() );
+    TLatex pdf_lbl(0.73,lbl_y2-0.12, ("PDF: "+combine(pdf_name)).c_str() );
     pdf_lbl.SetNDC();
     pdf_lbl.SetTextAlign(13);
     pdf_lbl.SetTextFont(42);
     pdf_lbl.SetTextSize(0.035);
     pdf_lbl.Draw();
 
+    unique_ptr<TText> u_lbl, o_lbl;
     if (of_lim_set) {
       if (sigma_u/sigma > of_lim) {
         stringstream ss;
         ss << setprecision(2) << 100.*sigma_u/sigma << "% underflow";
         cout << "\033[33m" << ss.str() << "\033[0m" << endl;
-        TText *u_lbl = new TText(0.3,0.45,ss.str().c_str());
+        u_lbl.reset( new TText(0.3,0.45,ss.str().c_str()) );
         u_lbl->SetNDC();
         u_lbl->SetTextAlign(13);
         u_lbl->SetTextColor(2);
@@ -361,7 +392,7 @@ int main(int argc, char** argv)
         stringstream ss;
         ss << setprecision(2) << 100.*sigma_o/sigma << "% overflow";
         cout << "\033[33m" << ss.str() << "\033[0m" << endl;
-        TText *o_lbl = new TText(0.3,0.55,ss.str().c_str());
+        o_lbl.reset( new TText(0.3,0.55,ss.str().c_str()) );
         o_lbl->SetNDC();
         o_lbl->SetTextAlign(13);
         o_lbl->SetTextColor(2);
@@ -369,6 +400,9 @@ int main(int argc, char** argv)
         o_lbl->Draw();
       }
     }
+
+    if (ya->GetXmin()<0. && 0.<ya->GetXmax())
+      zero.DrawLine(bins_edge.front(),0,bins_edge.back()+bins_wdth.back(),0);
 
     // **************************************************************
 
