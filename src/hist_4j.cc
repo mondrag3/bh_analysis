@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <array>
 #include <unordered_map>
 #include <utility>
 #include <stdexcept>
@@ -97,27 +98,20 @@ fastjet::JetDefinition* JetDef(string& str) {
   );
 }
 
-// ******************************************************************
+// Pairing **********************************************************
+inline Double_t mass(const TLorentzVector& a, const TLorentzVector& b) {
+  return (a+b).M();
+}
+inline Double_t dphi(const TLorentzVector& a, const TLorentzVector& b) {
+  return fabs( a.Phi() - b.Phi() );
+}
+inline Double_t dy(const TLorentzVector& a, const TLorentzVector& b) {
+  return fabs( a.Rapidity() - b.Rapidity() );
+}
 
-struct Jet {
-private:
-  inline Double_t _tau(Double_t Y) noexcept {
-    // need rapidity here
-    return sqrt( pT*pT + mass*mass )/( 2.*cosh(y - Y) );
-  }
-public:
-  TLorentzVector *p;
-  Double_t mass, pT, y, tau;
-  Jet(const TLorentzVector& p, Double_t Y, bool keep=false) noexcept
-  : p(keep ? new TLorentzVector(p) : nullptr),
-    mass(p.M()), pT(p.Pt()), y(p.Rapidity()), tau(_tau(Y))
-  { }
-  Jet(const fastjet::PseudoJet& p, Double_t Y, bool keep=false) noexcept
-  : p(keep ? new TLorentzVector(p.px(),p.py(),p.pz(),p.E()) : nullptr),
-    mass(p.m()), pT(sqrt(p.kt2())), y(p.rapidity()), tau(_tau(Y))
-  { }
-  ~Jet() { delete p; }
-};
+// Constants ********************************************************
+constexpr unsigned njets  = 4; // number of jets
+constexpr unsigned n2jets = 6; // number of pairs
 
 // ******************************************************************
 int main(int argc, char** argv)
@@ -322,13 +316,15 @@ int main(int argc, char** argv)
 
     h_(4j_HT), h_(jet1_pT), h_(jet2_pT), h_(jet3_pT), h_(jet4_pT),
 
-    h_(4j_mass), h_(2j_mass_min),
+    h_(4j_mass),
+    
+    h_(2j_mass_min),     h_(2j_mass_max),
 
     h_(2j_deltaphi_min), h_(2j_deltaphi_max),
-    h_(2j_deltay_min), h_(2j_deltay_max),
+    h_(2j_deltay_min),   h_(2j_deltay_max),
 
     h_(3j_deltaphi_min), h_(3j_deltaphi_max),
-    h_(3j_deltay_min), h_(3j_deltay_max),
+    h_(3j_deltay_min),   h_(3j_deltay_max)
   ;
 
   // Reading entries from the input TChain ***************************
@@ -361,162 +357,123 @@ int main(int argc, char** argv)
     for (Int_t i=0;i<event.nparticle;i++) h_pid->Fill(event.kf[i]);
 
     // Jet clustering *************************************
-    vector<Jet> jets;
+    vector<TLorentzVector> jets;
+    jets.reserve(njets);
     if (sj_given) { // Read jets from SpartyJet ntuple
-      const vector<TLorentzVector> sj_jets = sj_alg->jetsByPt(pt_cut4,eta_cut);
-      jets.reserve(sj_jets.size());
-      for (auto& jet : sj_jets) {
-        jets.emplace_back(jet,H_y,jets.size()<3);
-      }
+      jets = sj_alg->jetsByPt(pt_cut4,eta_cut);
 
     } else { // Clusted with FastJet on the fly
       vector<fastjet::PseudoJet> particles;
       particles.reserve(event.nparticle-1);
 
       for (Int_t i=0; i<event.nparticle; ++i) {
-        if (i==hi) continue;
         particles.emplace_back(
           event.px[i],event.py[i],event.pz[i],event.E[i]
         );
       }
+      
+      // Cluster
+      const vector<fastjet::PseudoJet> fj_jets =
+        fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut4);
 
-      // Cluster, sort jets by pT, and apply pT cut
-      const vector<fastjet::PseudoJet> fj_jets = sorted_by_pt(
-        fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut4)
-      );
-
-      // Apply eta cut
-      jets.reserve(fj_jets.size());
-      for (auto& jet : fj_jets) {
-        if (abs(jet.eta()) < eta_cut)
-          jets.emplace_back(jet,H_y,jets.size()<3);
+      // Apply pT cut & convert to TLorentzVector
+      for (auto& j : fj_jets) {
+        if (j.pt() < pt_cut4) continue;
+        jets.emplace_back(j.px(),j.py(),j.pz(),j.E());
       }
+      
+      // Sort by pT
+      std::sort( jets.begin(), jets.end(),
+        [](const TLorentzVector& i, const TLorentzVector& j)
+          { return i.Pt() > j.Pt(); }
+      );
     }
-    const size_t njets = jets.size(); // number of jets
+    const size_t this_njets = jets.size(); // number of jets
 
     // ****************************************************
+    
+    // pT cut on the first jet
+    if (this_njets) if (jets.front().Pt()<pt_cut1) continue;
 
-    // Number of jets hists
-    h_jets_N_excl.Fill(njets);
-    for (int i=0;i<4;i++) if (njets >= i) h_jets_N_incl.Fill(i);
+    // Number of jets hists *******************************
+    h_jets_N_excl.Fill(this_njets);
+    for (unsigned i=0;i<this_njets;++i)
+      if (this_njets >= i) h_jets_N_incl.Fill(i);
 
-    if (njets<4) continue;
+    if (this_njets < njets) continue;
 
+    // Jets pT ********************************************
+    static array<double,njets> pT;
     Double_t HT = 0.;
-    for (unsigned char i=0;i<4;i++) {
+    for (size_t i=0;i<njets;++i) HT += pT[i] = jets[i].Pt();
 
+    h_4j_HT.Fill(HT);
+    h_jet1_pT.Fill(pT[0]);
+    h_jet2_pT.Fill(pT[1]);
+    h_jet3_pT.Fill(pT[2]);
+    h_jet4_pT.Fill(pT[3]);
 
-
-
-
-    h_(4j_HT), h_(jet1_pT), h_(jet2_pT), h_(jet3_pT), h_(jet4_pT),
-
-    h_(4j_mass), h_(2j_mass_min),
-
-    h_(2j_deltaphi_min), h_(2j_deltaphi_max),
-    h_(2j_deltay_min), h_(2j_deltay_max),
-
-    h_(3j_deltaphi_min), h_(3j_deltaphi_max),
-    h_(3j_deltay_min), h_(3j_deltay_max),
-
-
-
-
-
-
-
-
-
-
-    if (njets==0) { // njets == 0; --------------------------------=0
-
-      h_H_pT_0j_excl.Fill(H_pT);
-      h_H_y_0j_excl .Fill(H_y);
-
+    // Sum of all jets ************************************
+    const TLorentzVector all4 = jets[0] + jets[1] + jets[2] + jets[3];
+    const Double_t m4 = all4.M();
+    
+    h_4j_mass.Fill(m4);
+    
+    // Jet pairs ******************************************
+    static array<double,n2jets> dphi2_, dy2_;
+    
+    Double_t    m2_min =             mass(jets[0], jets[1]);
+    Double_t dphi2_min = dphi2_[0] = dphi(jets[0], jets[1]);
+    Double_t   dy2_min =   dy2_[0] =   dy(jets[0], jets[1]);
+    Double_t    m2_max =    m2_min;
+    Double_t dphi2_max = dphi2_min;
+    Double_t   dy2_max =   dy2_min;
+    
+    for (size_t i=2;i<njets;++i) {
+      for (size_t j=0;j<i;++j) {
+        const Double_t    m2 =                 mass(jets[i], jets[j]);
+        const Double_t dphi2 = dphi2_[i+j-1] = dphi(jets[i], jets[j]);
+        const Double_t   dy2 =   dy2_[i+j-1] =   dy(jets[i], jets[j]);
+        if (   m2 <    m2_min)    m2_min =    m2;
+        if (   m2 >    m2_max)    m2_max =    m2;
+        if (dphi2 < dphi2_min) dphi2_min = dphi2;
+        if (dphi2 > dphi2_max) dphi2_max = dphi2;
+        if (  dy2 <   dy2_min)   dy2_min =   dy2;
+        if (  dy2 >   dy2_max)   dy2_max =   dy2;
+      }
     }
-    else { // njets > 0; ------------------------------------------>0
 
-      h_H_pT_1j  .Fill(H_pT);
-      h_H_y_1j   .Fill(H_y);
+    h_2j_mass_min    .Fill(   m2_min/m4 );
+    h_2j_mass_max    .Fill(   m2_max/m4 );
+    h_2j_deltaphi_min.Fill(dphi2_min);
+    h_2j_deltaphi_max.Fill(dphi2_max);
+    h_2j_deltay_min  .Fill(  dy2_min);
+    h_2j_deltay_max  .Fill(  dy2_max);
 
-      h_jet1_mass.Fill(jets[0].mass);
-      h_jet1_pT  .Fill(jets[0].pT);
-      h_jet1_y   .Fill(jets[0].y);
-      h_jet1_tau .Fill(jets[0].tau);
+    // Jet triplets ***************************************
+    Double_t dphi3_min = dphi2_[0] + dphi2_[1];
+    Double_t   dy3_min =   dy2_[0] +   dy2_[1];
+    Double_t dphi3_max = dphi3_min;
+    Double_t   dy3_max =   dy3_min;
+    
+    for (size_t i=2;i<n2jets;++i) {
+      for (size_t j=0;j<i;++j) {
+        if (i+j == n2jets-1) continue;
 
-      const TLorentzVector H1j = higgs+(*jets[0].p);
-      const Double_t H1j_pT = H1j.Pt();
-
-      h_H1j_pT   .Fill(H1j_pT);
-
-      Double_t jets_HT = 0, jets_tau_max = 0, jets_tau_sum = 0;
-
-      for (auto& jet : jets) {
-        jets_HT += jet.pT;
-        jets_tau_sum += jet.tau;
-        if (jet.tau > jets_tau_max) jets_tau_max = jet.tau;
+        const Double_t dphi3 = dphi2_[i] + dphi2_[j];
+        const Double_t   dy3 =   dy2_[i] +   dy2_[j];
+        
+        if (dphi3 < dphi3_min) dphi3_min = dphi3;
+        if (dphi3 > dphi3_max) dphi3_max = dphi3;
+        if (  dy3 <   dy3_min)   dy3_min =   dy3;
+        if (  dy3 >   dy3_max)   dy3_max =   dy3;
       }
-      h_jets_HT.Fill(jets_HT);
-      h_jets_tau_max.Fill(jets_tau_max);
-      h_jets_tau_sum.Fill(jets_tau_sum);
-
-      if (njets==1) { // njets == 1; ------------------------------=1
-
-        h_H_pT_1j_excl.Fill(H_pT);
-        h_H_y_1j_excl .Fill(H_y);
-        h_H1j_pT_excl .Fill(H1j_pT);
-
-      }
-      else { // njets > 1; ---------------------------------------->1
-
-        h_H_pT_2j  .Fill(H_pT);
-        h_H_y_2j   .Fill(H_y);
-
-        h_jet2_mass.Fill(jets[1].mass);
-        h_jet2_pT  .Fill(jets[1].pT);
-        h_jet2_y   .Fill(jets[1].y);
-        h_jet2_tau .Fill(jets[1].tau);
-
-        const TLorentzVector H2j = H1j+(*jets[1].p);
-        const Double_t H2j_pT = H2j.Pt();
-
-        h_H2j_pT   .Fill(H2j_pT);
-
-        if (njets==2) { // njets == 2; ----------------------------=2
-
-          h_H_pT_2j_excl.Fill(H_pT);
-          h_H_y_2j_excl .Fill(H_y);
-          h_H2j_pT_excl .Fill(H2j_pT);
-
-        }
-        else { // njets > 2; -------------------------------------->2
-
-          h_H_pT_3j  .Fill(H_pT);
-          h_H_y_3j   .Fill(H_y);
-
-          h_jet3_mass.Fill(jets[2].mass);
-          h_jet3_pT  .Fill(jets[2].pT);
-          h_jet3_y   .Fill(jets[2].y);
-          h_jet3_tau .Fill(jets[2].tau);
-
-          const TLorentzVector H3j = H2j+(*jets[2].p);
-          const Double_t H3j_pT = H3j.Pt();
-
-          h_H3j_pT   .Fill(H3j_pT);
-
-          if (njets==3) { // njets == 3; --------------------------=3
-
-            h_H_pT_3j_excl.Fill(H_pT);
-            h_H_y_3j_excl .Fill(H_y);
-            h_H3j_pT_excl .Fill(H3j_pT);
-
-          }
-
-        } // END njets > 2;
-
-      } // END njets > 1;
-
-    } // END njets > 0;
+    }
+    
+    h_3j_deltaphi_min.Fill(dphi3_min);
+    h_3j_deltaphi_max.Fill(dphi3_max);
+    h_3j_deltay_min  .Fill(  dy3_min);
+    h_3j_deltay_max  .Fill(  dy3_max);
 
   } // END of event loop
 
