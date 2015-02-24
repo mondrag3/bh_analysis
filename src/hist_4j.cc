@@ -431,7 +431,7 @@ int main(int argc, char** argv)
     Double_t   dy2_max =   dy2_min;
     
     // To flatten traceless triangular matrix:
-    // k = i*(i-1) + j
+    // k = i*(i-1)/2 + j
     
     for (size_t i=2,k=1;i<njets;++i) {
       for (size_t j=0;j<i;++j,++k) {
