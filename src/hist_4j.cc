@@ -98,17 +98,6 @@ fastjet::JetDefinition* JetDef(string& str) {
   );
 }
 
-// Pairing **********************************************************
-inline Double_t mass(const TLorentzVector& a, const TLorentzVector& b) {
-  return (a+b).M();
-}
-inline Double_t dphi(const TLorentzVector& a, const TLorentzVector& b) {
-  return fabs( a.Phi() - b.Phi() );
-}
-inline Double_t dy(const TLorentzVector& a, const TLorentzVector& b) {
-  return fabs( a.Rapidity() - b.Rapidity() );
-}
-
 // Constants ********************************************************
 constexpr unsigned njets  = 4; // number of jets
 constexpr unsigned n2jets = 6; // number of pairs
@@ -314,7 +303,10 @@ int main(int argc, char** argv)
   hist
     h_(jets_N_incl), h_(jets_N_excl),
 
-    h_(4j_HT), h_(jet1_pT), h_(jet2_pT), h_(jet3_pT), h_(jet4_pT),
+    h_(jet1_pT), h_(jet2_pT), h_(jet3_pT), h_(jet4_pT),
+    h_(4j_HT), h_(2j_HT),
+    
+    h_(jet1_y), h_(jet2_y), h_(jet3_y), h_(jet4_y),
 
     h_(4j_mass),
     
@@ -382,7 +374,7 @@ int main(int argc, char** argv)
         jets.emplace_back(j.px(),j.py(),j.pz(),j.E());
       }
       
-      // Sort by pT
+      // Sort by pT in descending order
       std::sort( jets.begin(), jets.end(),
         [](const TLorentzVector& i, const TLorentzVector& j)
           { return i.Pt() > j.Pt(); }
@@ -403,15 +395,24 @@ int main(int argc, char** argv)
     if (this_njets < njets) continue;
 
     // Jets pT ********************************************
-    static array<double,njets> pT;
+    static array<double,njets> pT, rap, phi;
     Double_t HT = 0.;
-    for (size_t i=0;i<njets;++i) HT += pT[i] = jets[i].Pt();
+    for (size_t i=0;i<njets;++i) {
+      HT += pT[i] = jets[i].Pt();
+      rap[i] = jets[i].Rapidity();
+      phi[i] = jets[i].Phi();
+    }
 
     h_4j_HT.Fill(HT);
     h_jet1_pT.Fill(pT[0]);
     h_jet2_pT.Fill(pT[1]);
     h_jet3_pT.Fill(pT[2]);
     h_jet4_pT.Fill(pT[3]);
+    
+    h_jet1_y.Fill(rap[0]);
+    h_jet2_y.Fill(rap[1]);
+    h_jet3_y.Fill(rap[2]);
+    h_jet4_y.Fill(rap[3]);
 
     // Sum of all jets ************************************
     const TLorentzVector all4 = jets[0] + jets[1] + jets[2] + jets[3];
@@ -422,18 +423,18 @@ int main(int argc, char** argv)
     // Jet pairs ******************************************
     static array<double,n2jets> dphi2_, dy2_;
     
-    Double_t    m2_min =             mass(jets[0], jets[1]);
-    Double_t dphi2_min = dphi2_[0] = dphi(jets[0], jets[1]);
-    Double_t   dy2_min =   dy2_[0] =   dy(jets[0], jets[1]);
+    Double_t    m2_min =             (jets[0]+jets[1]).M();
+    Double_t dphi2_min = dphi2_[0] = fabs(phi[0] - phi[1]);
+    Double_t   dy2_min =   dy2_[0] = fabs(rap[0] - rap[1]);
     Double_t    m2_max =    m2_min;
     Double_t dphi2_max = dphi2_min;
     Double_t   dy2_max =   dy2_min;
     
     for (size_t i=2;i<njets;++i) {
       for (size_t j=0;j<i;++j) {
-        const Double_t    m2 =                 mass(jets[i], jets[j]);
-        const Double_t dphi2 = dphi2_[i+j-1] = dphi(jets[i], jets[j]);
-        const Double_t   dy2 =   dy2_[i+j-1] =   dy(jets[i], jets[j]);
+        const Double_t    m2 =                 (jets[i]+jets[j]).M();
+        const Double_t dphi2 = dphi2_[i+j-1] = fabs(phi[i] - phi[j]);
+        const Double_t   dy2 =   dy2_[i+j-1] = fabs(rap[i] - rap[j]);
         if (   m2 <    m2_min)    m2_min =    m2;
         if (   m2 >    m2_max)    m2_max =    m2;
         if (dphi2 < dphi2_min) dphi2_min = dphi2;
@@ -474,6 +475,14 @@ int main(int argc, char** argv)
     h_3j_deltaphi_max.Fill(dphi3_max);
     h_3j_deltay_min  .Fill(  dy3_min);
     h_3j_deltay_max  .Fill(  dy3_max);
+    
+    // Sort by rapidity in ascending order ****************
+    std::sort( jets.begin(), jets.end(),
+      [](const TLorentzVector& i, const TLorentzVector& j)
+        { return fabs(i.Rapidity()) < fabs(j.Rapidity()); }
+    );
+
+    h_2j_HT.Fill( jets[0].Pt() + jets[1].Pt() );
 
   } // END of event loop
 

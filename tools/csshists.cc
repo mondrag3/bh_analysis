@@ -85,9 +85,9 @@ struct prop_Bins_range: public prop_Bins {
   }
 };
 
-struct prop_Bins_vals: public prop_Bins {
+struct prop_Bin_edges: public prop_Bins {
   vector<Double_t> xbins;
-  prop_Bins_vals(const string& str): prop_Bins(false) {
+  prop_Bin_edges(const string& str): prop_Bins(false) {
     stringstream ss(str);
     Double_t bin;
     while(ss >> bin) xbins.push_back(bin);
@@ -122,7 +122,9 @@ pair<prop_t,const prop*> mkprop(const string& str) {
   size_t sep = str.find_first_of(":");
   pair<string,string> ps(
     boost::algorithm::trim_copy(str.substr(0,sep)),
-    boost::algorithm::trim_copy(str.substr(sep+1))
+    boost::algorithm::trim_copy(
+      boost::replace_all_copy(str.substr(sep+1), ",", " ")
+    )
   );
 
   if (!ps.first.compare("Class")) {
@@ -131,9 +133,9 @@ pair<prop_t,const prop*> mkprop(const string& str) {
   } else if (!ps.first.compare("Bins")) {
     type = kBins;
     p = new const prop_Bins_range(ps.second);
-  } else if (!ps.first.compare("Bins*")) {
+  } else if (!ps.first.compare("BinEdges")) {
     type = kBins;
-    p = new const prop_Bins_vals(ps.second);
+    p = new const prop_Bin_edges(ps.second);
   } else if (!ps.first.compare("LineColor")) {
     type = kLineColor;
     p = new const prop_LineColor(ps.second);
@@ -307,8 +309,8 @@ TH1* csshists::mkhist(const string& name) const {
     );
 
   } else {
-    const prop_Bins_vals* b
-      = static_cast<const prop_Bins_vals*>(props[kBins]);
+    const prop_Bin_edges* b
+      = static_cast<const prop_Bin_edges*>(props[kBins]);
 
     if (!class_name.compare("TH1F")) {
       h = new TH1F(name.c_str(),"",b->xbins.size()-1,&b->xbins[0]);
