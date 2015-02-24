@@ -43,7 +43,6 @@ class hist {
 public:
   hist(const string& name) {
     TH1* hist = css->mkhist(name);
-    hist->Sumw2(false); // in ROOT6 true seems to be the default
     for (auto& wt : weight::all) {
       const weight *w = wt.get();
       dirs[w]->cd();
@@ -305,11 +304,11 @@ int main(int argc, char** argv)
 
     h_(jet1_pT), h_(jet2_pT), h_(jet3_pT), h_(jet4_pT),
     h_(4j_HT), h_(2j_HT),
-    
+
     h_(jet1_y), h_(jet2_y), h_(jet3_y), h_(jet4_y),
 
     h_(4j_mass),
-    
+
     h_(2j_mass_min),     h_(2j_mass_max),
 
     h_(2j_deltaphi_min), h_(2j_deltaphi_max),
@@ -363,7 +362,7 @@ int main(int argc, char** argv)
           event.px[i],event.py[i],event.pz[i],event.E[i]
         );
       }
-      
+
       // Cluster
       const vector<fastjet::PseudoJet> fj_jets =
         fastjet::ClusterSequence(particles, *jet_def).inclusive_jets(pt_cut4);
@@ -373,7 +372,7 @@ int main(int argc, char** argv)
         if (j.pt() < pt_cut4) continue;
         jets.emplace_back(j.px(),j.py(),j.pz(),j.E());
       }
-      
+
       // Sort by pT in descending order
       std::sort( jets.begin(), jets.end(),
         [](const TLorentzVector& i, const TLorentzVector& j)
@@ -383,7 +382,7 @@ int main(int argc, char** argv)
     const size_t this_njets = jets.size(); // number of jets
 
     // ****************************************************
-    
+
     // pT cut on the first jet
     if (this_njets) if (jets.front().Pt()<pt_cut1) continue;
 
@@ -408,7 +407,7 @@ int main(int argc, char** argv)
     h_jet2_pT.Fill(pT[1]);
     h_jet3_pT.Fill(pT[2]);
     h_jet4_pT.Fill(pT[3]);
-    
+
     h_jet1_y.Fill(rap[0]);
     h_jet2_y.Fill(rap[1]);
     h_jet3_y.Fill(rap[2]);
@@ -417,19 +416,19 @@ int main(int argc, char** argv)
     // Sum of all jets ************************************
     const TLorentzVector all4 = jets[0] + jets[1] + jets[2] + jets[3];
     const Double_t m4 = all4.M();
-    
+
     h_4j_mass.Fill(m4);
-    
+
     // Jet pairs ******************************************
     static array<double,n2jets> dphi2_, dy2_;
-    
+
     Double_t    m2_min =             (jets[0]+jets[1]).M();
     Double_t dphi2_min = dphi2_[0] = fabs(phi[0] - phi[1]);
     Double_t   dy2_min =   dy2_[0] = fabs(rap[0] - rap[1]);
     Double_t    m2_max =    m2_min;
     Double_t dphi2_max = dphi2_min;
     Double_t   dy2_max =   dy2_min;
-    
+
     for (size_t i=2;i<njets;++i) {
       for (size_t j=0;j<i;++j) {
         const Double_t    m2 =                 (jets[i]+jets[j]).M();
@@ -456,26 +455,26 @@ int main(int argc, char** argv)
     Double_t   dy3_min =   dy2_[0] +   dy2_[1];
     Double_t dphi3_max = dphi3_min;
     Double_t   dy3_max =   dy3_min;
-    
+
     for (size_t i=2;i<n2jets;++i) {
       for (size_t j=0;j<i;++j) {
         if (i+j == n2jets-1) continue;
 
         const Double_t dphi3 = dphi2_[i] + dphi2_[j];
         const Double_t   dy3 =   dy2_[i] +   dy2_[j];
-        
+
         if (dphi3 < dphi3_min) dphi3_min = dphi3;
         if (dphi3 > dphi3_max) dphi3_max = dphi3;
         if (  dy3 <   dy3_min)   dy3_min =   dy3;
         if (  dy3 >   dy3_max)   dy3_max =   dy3;
       }
     }
-    
+
     h_3j_deltaphi_min.Fill(dphi3_min);
     h_3j_deltaphi_max.Fill(dphi3_max);
     h_3j_deltay_min  .Fill(  dy3_min);
     h_3j_deltay_max  .Fill(  dy3_max);
-    
+
     // Sort by rapidity in ascending order ****************
     std::sort( jets.begin(), jets.end(),
       [](const TLorentzVector& i, const TLorentzVector& j)
